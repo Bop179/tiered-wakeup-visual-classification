@@ -53,6 +53,13 @@ catches the event and a booting one sometimes does not — pick it from the meas
 | `contrast` | fixed, 0.8 |
 | events per cell | ≥ 40 |
 
+> **No reflash per cell.** `run_experiment.py` passes `--dormancy-ms` to the daemon, which
+> `SET`s it on Tier 1 over the serial link and records the `CFG` value Tier 1 reports as
+> *in effect* into `manifest.json` as `dormancy_ms_verified`. That is the number to trust
+> — `--dormancy-ms` is only what was asked for. If a run's manifest shows
+> `dormancy_ms_verified: null`, the firmware did not acknowledge the `SET` and **that
+> cell's dormancy is unverified**; re-run it rather than reporting it.
+
 > **Arrival distribution must be exponential, not fixed.** With a fixed dwell the Pi is either always
 > awake at an arrival or always halted at one, so detection rate collapses to a step function and
 > there is no curve to plot. Memoryless arrivals give a smooth front — and they are what the
@@ -135,4 +142,7 @@ distribution, not just the mean — the halted case's variance is the boot-time 
 4. FNB58 on its own mains brick, `diskutil unmount "/Volumes/NO NAME"`, PC cable seated.
 5. Clapperboard fires at t=0 — **confirm the 2 s step is visible in the trace before trusting the run.**
 6. `RES` count vs `GEN` count reconciled. Unexplained gaps get investigated, not averaged away.
-7. Manifest written. **A run without a manifest is a run that did not happen.**
+7. Manifest written, and `dormancy_ms_verified` matches the intended cell. **A run without
+   a manifest is a run that did not happen.**
+8. Tier 0's trimmer has not moved since the ROC sweep. If it has, note it — the cells
+   before and after are not comparable.

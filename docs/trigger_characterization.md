@@ -56,6 +56,11 @@ This is the ROC.
 Record `V_threshold` at the wiper with a DMM, not just the turn count — turn counts do not survive
 a knock and the wiper voltage is what the comparator actually sees.
 
+**Lock the trimmer once this sweep is done** (varnish, glue, epoxy) and record the final
+wiper voltage. The matrix runs for three days and compares cells against each other; a
+trimmer nudged partway through silently invalidates that comparison, and nothing in the
+data would reveal it.
+
 ## 5. Tier 0 and Tier 1 current (Sep 13)
 
 DMM in series. These are near-constants and only need measuring once; the FNB58 is on the Pi rail.
