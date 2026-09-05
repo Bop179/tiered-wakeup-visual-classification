@@ -1,0 +1,9 @@
+# Pi side. picamera2 is a SYSTEM package on Raspberry Pi OS Bookworm -- do not
+# pip install it. Create the venv so it can see the system packages:
+#
+#     python3 -m venv --system-site-packages .venv
+#     .venv/bin/pip install -r pi/requirements.txt
+
+numpy>=1.24
+pyserial>=3.5
+ai-edge-litert>=1.0   # or: tflite-runtime  (Bookworm ships Python 3.11, both work)

@@ -1,0 +1,13 @@
+# Mac side: stimulus, power logging, offline reference predictions, plots.
+#
+# NOTE: analysis/energy_analysis.py, analysis/power_model.py and
+# tools/mock_arduino.py --self-test deliberately need NONE of this. They are
+# stdlib only so they run on a laptop with nothing installed.
+
+pygame>=2.5          # full-screen stimulus with vsync-locked frame timing
+hidapi>=0.14         # FNB58 power meter (also: brew install hidapi)
+pyserial>=3.5        # real serial links; not needed for the pty mock
+numpy>=1.24
+matplotlib>=3.7      # analysis/plots.py only
+Pillow>=10.0         # image loading for reference_predict.py
+ai-edge-litert>=1.0  # TFLite runtime; `tflite-runtime` also works

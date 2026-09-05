@@ -1,0 +1,3 @@
+t_pi,event_idx,arduino_t_ms,peak,evt_duration_ms,state_at_evt,capture_ms,infer_ms,latency_ms,class_id,class_name,confidence,top5,fired
+1788633508.336,0,0,800,200,awake,12.0,120.0,140.0,954,banana,0.812,954:0.812,1
+1788633580.479,1,1000,800,200,awake,12.0,120.0,140.0,954,banana,0.812,954:0.812,0

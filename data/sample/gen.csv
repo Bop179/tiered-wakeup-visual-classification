@@ -1,0 +1,6 @@
+t_mac,event_idx,image_id,true_class,true_class_id,patch_contrast,duration_ms,is_target
+1788633508.336,0,img_0000.jpg,banana,-1,0.800,15000,1
+1788633549.269,1,img_0001.jpg,class_1,-1,0.800,15000,0
+1788633580.479,2,img_0002.jpg,class_2,-1,0.800,15000,0
+1788633592.485,3,img_0003.jpg,class_3,-1,0.800,15000,0
+1788633599.077,4,img_0004.jpg,class_4,-1,0.800,15000,0
