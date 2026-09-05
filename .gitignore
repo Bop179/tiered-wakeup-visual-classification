@@ -1,0 +1,42 @@
+# Local planning artifacts — not project artifacts
+SPEC.md
+PLAN.md
+HANDOFF.md
+.claude/
+
+# Experiment outputs. One sample run is force-added; see data/README.md
+data/*
+!data/README.md
+!data/sample/
+!data/sample/**
+# ...but not its derived analysis output; energy_analysis.py regenerates it, and a
+# stale summary next to the sample is a trap.
+data/sample/summary.json
+
+# Stimulus set: a few hundred ImageNet JPEGs, fetched not committed
+images/*
+!images/README.md
+
+# Models: fetched by pi/models/fetch_models.sh
+*.tflite
+*.tgz
+pi/models/labels.txt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# FNB58 logger stop-sentinel
+fnirsi_stop
+
+# Scratch from `mock_arduino.py --self-test`, whose default --events-out is cwd
+mock_events.csv
+
+# macOS
+.DS_Store
+
+# Proposal is an application artifact, not a project artifact
+*Proposal*

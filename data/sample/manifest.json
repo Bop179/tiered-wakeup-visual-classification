@@ -1,0 +1,26 @@
+{
+  "run_id": "sample",
+  "synthetic": true,
+  "git_sha": "synthetic",
+  "params": {
+    "mean_interval": 22.0,
+    "duration_ms": 15000,
+    "contrast": 0.8,
+    "dormancy_ms": 12000,
+    "n_events": 5,
+    "model": "int8"
+  },
+  "ground_truth": {
+    "p_idle": 2.5,
+    "p_halt": 0.5,
+    "p_boot": 3.5,
+    "t_boot": 30.0,
+    "e_boot": 105.0,
+    "n_boots": 2,
+    "n_detected": 2,
+    "n_generated": 5
+  },
+  "clock_start": {
+    "offset_s": 0.0
+  }
+}
