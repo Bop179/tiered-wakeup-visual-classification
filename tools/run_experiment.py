@@ -135,7 +135,7 @@ def main() -> int:
     g.add_argument("--duration-ms", type=int, default=15000)
     g.add_argument("--contrast", type=float, default=0.8)
     g.add_argument("--dormancy-ms", type=int, required=True,
-                   help="recorded only; it lives in the firmware. -1 = never halt")
+                   help="SET on Tier 1 over serial at run start. -1 = never halt")
     g.add_argument("--n-events", type=int, default=40)
     g.add_argument("--model", choices=["int8", "fp32"], default="int8")
     g.add_argument("--dwell-dist", choices=["exponential", "fixed"],
@@ -161,7 +161,7 @@ def main() -> int:
                     help="do not start the daemon over ssh; assume it is running")
     ap.add_argument("--no-clock", action="store_true", help="skip the ssh offsets")
     ap.add_argument("--confirm-dormancy", action="store_true",
-                    help="stop and ask whether the firmware matches --dormancy-ms")
+                    help="stop and ask, for firmware that predates SET/GET")
     ap.add_argument("--dry-run", action="store_true",
                     help="stimulus schedule and manifest only; no hardware touched")
     args = ap.parse_args()
@@ -219,6 +219,7 @@ def main() -> int:
             remote = (f"cd {args.pi_repo} && "
                       f"nohup .venv/bin/python pi/pi_daemon.py "
                       f"--model {args.model} --target-class {shlex.quote(args.target_class)} "
+                      f"--dormancy-ms {args.dormancy_ms} "
                       f"--out data/{run_id}/events.csv "
                       f"> data/{run_id}/daemon.log 2>&1 &")
             print(f"  daemon: ssh {args.host} '{remote}'")
@@ -276,6 +277,31 @@ def main() -> int:
         if r.returncode != 0:
             print(f"  scp failed: {r.stderr.strip()}\n"
                   f"  fetch by hand:  scp '{src}*' {run_dir}/", file=sys.stderr)
+
+    # The value Tier 1 says is IN EFFECT, read back from its CFG reply. This is
+    # the number that goes in the record -- --dormancy-ms is only what we asked
+    # for, and a clamped or unacknowledged SET would otherwise be invisible.
+    log = run_dir / "daemon.log"
+    if log.exists():
+        for line in log.read_text().splitlines():
+            if line.startswith("# param DORMANCY="):
+                try:
+                    verified = int(line.split("=")[1].split()[0])
+                except (IndexError, ValueError):
+                    break
+                manifest["dormancy_ms_verified"] = verified
+                if verified != args.dormancy_ms:
+                    print(f"  WARNING: asked for dormancy {args.dormancy_ms} ms but "
+                          f"Tier 1 reports {verified} ms in effect. The manifest "
+                          f"records {verified}.")
+                break
+            if line.startswith("# WARN DORMANCY not acknowledged"):
+                manifest["dormancy_ms_verified"] = None
+                print("  WARNING: Tier 1 did not acknowledge SET,DORMANCY. The "
+                      "firmware may predate SET/GET, in which case the dormancy in "
+                      "effect is whatever was last flashed and this run's parameter "
+                      "is UNVERIFIED.")
+                break
 
     manifest["finished_utc"] = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     manifest["files"] = sorted(p.name for p in run_dir.iterdir())

@@ -47,6 +47,9 @@ So `Serial.println("# woke, peak=412");` is always safe. Protocol lines never st
 | Arduino → Pi | `HALT` | Dormancy timeout expired. Pi should halt. |
 | Pi → Arduino | `ACK` | Last message received and accepted. |
 | Pi → Arduino | `RES,<class_id>,<confidence>,<latency_ms>` | Classification result for the most recent `EVT`. |
+| Pi → Arduino | `SET,<key>,<value>` | Set a firmware parameter at runtime. See §1.1. |
+| Pi → Arduino | `GET,<key>` | Read a firmware parameter back. |
+| Arduino → Pi | `CFG,<key>,<value>` | The value **actually in effect**, answering `SET` or `GET`. |
 | Either → other | `SYNC,<t_ms>` | Clock reconciliation. See §4. |
 | Either → other | `# <anything>` | Comment. Ignore. |
 
@@ -58,6 +61,48 @@ So `Serial.println("# woke, peak=412");` is always safe. Protocol lines never st
 - `class_id` — integer index into `pi/models/labels.txt`. **`-1` means "no confident classification"** (below `--conf-threshold`).
 - `confidence` — float, `0.000`–`1.000`, three decimals.
 - `latency_ms` — integer, measured on the Pi from `EVT` line received to result ready. Includes capture.
+
+### 1.1 Runtime parameters — `SET` / `GET` / `CFG`
+
+**Added 2026-09-05, after the scaffold. Juan has not written the firmware yet, so
+this costs no rework — but it is a contract change and it is why this section exists.**
+
+The dormancy timeout is the swept variable of the headline experiment: six values ×
+four event rates = **24 matrix cells**. If `DORMANCY_MS` is a compile-time constant,
+each of those cells needs a reflash, which means Juan has to be physically present for
+every cell on Sep 14–16, and the run script can only record *what you say you flashed*.
+Both of those are avoidable.
+
+So Tier 1 exposes its constants over the link:
+
+```
+Pi      → SET,DORMANCY,30000
+Arduino → CFG,DORMANCY,30000        the value now in effect
+Pi      → GET,DORMANCY
+Arduino → CFG,DORMANCY,30000
+```
+
+| Key | Units | Range | Meaning |
+|---|---|---|---|
+| `DORMANCY` | ms | `0`–`3600000`, or `-1` | Silence before `HALT`. **`-1` means never halt.** |
+| `PERSIST` | ms | `0`–`5000` | Trigger must hold this long to count as an event |
+| `REFRACTORY` | ms | `0`–`60000` | Ignore new triggers this long after an event |
+
+Rules:
+
+1. **`CFG` reports the value in effect, not the value requested.** An out-of-range value
+   is **clamped**, and `CFG` returns the clamped figure. That is what makes this a
+   verification rather than a command — `run_experiment.py` writes the `CFG` value into
+   the manifest, so the run record cannot disagree with the hardware.
+2. Unknown key → `# ERR unknown key <key>`, and **no `CFG`**. Silence on `CFG` is how
+   the Pi knows the firmware is older than the key it asked for.
+3. **RAM only. Do not write EEPROM.** The daemon sets every parameter at each run start,
+   so persistence buys nothing and EEPROM has a finite write budget that 24 cells a day
+   would start eating into.
+4. A `SET` that arrives mid-event is applied **after** the current event completes.
+   Changing the refractory period underneath a running timer is a race nobody needs.
+5. Defaults on reset are the §6 values, so a firmware that has never been `SET` behaves
+   exactly as the brief describes.
 
 ### Rules
 
@@ -329,13 +374,15 @@ and free-text notes. **A run without a manifest is a run that did not happen.**
 
 ## 6. Firmware constants Juan owns
 
-Exposed at the top of `tier1_firmware.ino` so a sweep can change one and reflash:
+Exposed at the top of `tier1_firmware.ino`. The three marked runtime-settable are also
+reachable over the link via `SET`/`GET` (§1.1) — **that is how the matrix sweeps them, so
+no cell needs a reflash.** The rest are compile-time.
 
-| Constant | Suggested start | What it does |
-|---|---|---|
-| `PERSIST_MS` | 40 | Trigger must stay asserted this long to count as an event |
-| `DORMANCY_MS` | 30000 | **Silence before `HALT`. This is the swept variable.** |
-| `REFRACTORY_MS` | 500 | Ignore new triggers for this long after an event |
+| Constant | Default | Runtime-settable | What it does |
+|---|---|---|---|
+| `PERSIST_MS` | 40 | **yes**, `PERSIST` | Trigger must stay asserted this long to count as an event |
+| `DORMANCY_MS` | 30000 | **yes**, `DORMANCY` | **Silence before `HALT`. This is the swept variable.** |
+| `REFRACTORY_MS` | 500 | **yes**, `REFRACTORY` | Ignore new triggers for this long after an event |
 | `WAKE_ASSERT_MS` | 200 | How long GPIO3 is held low |
 | `PIN_TRIGGER` | 2 | INT0. Comparator output arrives here. |
 | `PIN_WAKE` | 7 | To Pi GPIO3 through 1 kΩ. **Open-drain only.** |

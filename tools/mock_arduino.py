@@ -129,11 +129,38 @@ class SerialLink(FdLink):
 class MockArduino:
     """Tier 1's state machine, minus the sleeping and the analog front end."""
 
+    # Defaults match docs/INTERFACE.md section 6; ranges match section 1.1.
+    PARAMS = {"DORMANCY": (30000, -1, 3600000),
+              "PERSIST": (40, 0, 5000),
+              "REFRACTORY": (500, 0, 60000)}
+
     def __init__(self, link, args):
         self.link, self.args = link, args
         self.rng = random.Random(args.seed)
         self.results: list[dict] = []
         self.acks = self.timeouts = self.malformed = 0
+        self.params = {k: v[0] for k, v in self.PARAMS.items()}
+
+    def handle_config(self, line: str) -> bool:
+        """SET/GET, answering CFG with the value actually in effect. -> handled?"""
+        parts = line.split(",")
+        if parts[0] not in ("SET", "GET") or len(parts) < 2:
+            return False
+        key = parts[1]
+        if key not in self.PARAMS:
+            self.link.send(f"# ERR unknown key {key}")
+            return True
+        if parts[0] == "SET":
+            try:
+                want = int(parts[2])
+            except (IndexError, ValueError):
+                self.link.send(f"# ERR bad value for {key}")
+                return True
+            default, lo, hi = self.PARAMS[key]
+            # Clamp, then report what is in effect -- never what was asked for.
+            self.params[key] = lo if want < lo else hi if want > hi else want
+        self.link.send(f"CFG,{key},{self.params[key]}")
+        return True
 
     def _wait_for(self, prefix: str, timeout: float,
                   answer_sync: bool = True) -> str | None:
@@ -153,6 +180,8 @@ class MockArduino:
             if answer_sync and line.startswith("SYNC,"):
                 self.link.send(f"SYNC,{mono_ms()}")
                 continue
+            if self.handle_config(line):
+                continue
             if line.startswith(prefix):
                 return line
             self.malformed += 1
@@ -169,7 +198,10 @@ class MockArduino:
                 continue
             if self.args.verbose:
                 print(f"  pi: {line}", file=sys.stderr)
-            if line.strip().startswith("# ready"):
+            line = line.strip()
+            if self.handle_config(line):
+                continue
+            if line.startswith("# ready"):
                 return True
         return False
 
@@ -252,6 +284,8 @@ def self_test(args) -> int:
         target_class, conf_threshold = "banana", 0.30
         out = str(args.events_out)
         clapperboard, sync_n, max_runtime = 0.0, 1, 30.0
+        dormancy_ms = args.dormancy_ms if args.dormancy_ms is not None else 30000
+        persist_ms = refractory_ms = None
         no_camera = fake_infer = no_halt = True
         fake_frame, swap_rgb = False, True
         fake_latency = 5.0
@@ -293,6 +327,51 @@ def self_test(args) -> int:
         print(f"  after {name:<18} -> {'alive' if r['ok'] else 'WEDGED'}")
         if not r["ok"]:
             failures.append(f"daemon wedged after {name}")
+
+    # The daemon SETs the swept parameters at startup; wait_ready above answered
+    # them. If this landed, the Pi -> Tier 1 configuration path works end to end
+    # and the run manifest can record the value actually in effect.
+    want_dorm = A.dormancy_ms
+    if want_dorm is not None:
+        got = mock.params["DORMANCY"]
+        print(f"  daemon SET DORMANCY -> {got} "
+              f"{'ok' if got == want_dorm else 'FAIL'}")
+        if got != want_dorm:
+            failures.append(f"daemon failed to SET DORMANCY: {got} != {want_dorm}")
+
+    # Clamping is a unit test of Tier 1's side, on its own queues so the replies
+    # do not land in the daemon's inbox. This is the behaviour Juan's firmware
+    # must reproduce: CFG reports what is IN EFFECT, never what was requested.
+    probe = MockArduino(QueueLink(deque(), deque()), args)
+    for key, want, expect in (("DORMANCY", 12000, 12000),
+                              ("DORMANCY", 9_999_999, 3600000),   # clamp high
+                              ("DORMANCY", -50, -1),              # clamp low
+                              ("PERSIST", 40, 40),
+                              ("REFRACTORY", 99_999, 60000)):     # clamp high
+        probe.link.outbox.clear()
+        probe.handle_config(f"SET,{key},{want}")
+        replies = list(probe.link.outbox)
+        got = (int(replies[-1].split(",")[2])
+               if replies and replies[-1].startswith(f"CFG,{key},") else None)
+        print(f"  SET {key}={str(want):<9} -> CFG {str(expect):<9} "
+              f"{'ok' if got == expect else f'FAIL (got {got})'}")
+        if got != expect:
+            failures.append(f"SET {key},{want} -> {got}, expected {expect}")
+
+    probe.link.outbox.clear()
+    probe.handle_config("GET,DORMANCY")
+    replies = list(probe.link.outbox)
+    ok_get = bool(replies) and replies[-1] == "CFG,DORMANCY,-1"
+    print(f"  GET DORMANCY reads back  {'ok' if ok_get else f'FAIL ({replies})'}")
+    if not ok_get:
+        failures.append(f"GET,DORMANCY returned {replies}")
+
+    probe.link.outbox.clear()
+    probe.handle_config("SET,NOSUCHKEY,1")
+    stray = [r for r in probe.link.outbox if r.startswith("CFG,")]
+    print(f"  unknown key -> no CFG    {'ok' if not stray else 'FAIL'}")
+    if stray:
+        failures.append("unknown SET key produced a CFG reply")
 
     # A malformed EVT must not be acked: an ACK promises a RES.
     mock_link.send("EVT,junk,junk,junk")
@@ -338,6 +417,8 @@ def run_pty(args) -> int:
            "--port", slave_path, "--out", str(args.events_out),
            "--clapperboard", str(args.clapperboard), "--sync-n", "1",
            "--max-runtime", str(args.max_runtime), "--no-halt"]
+    if args.dormancy_ms is not None:
+        cmd += ["--dormancy-ms", str(args.dormancy_ms)]
     if args.no_camera:
         cmd.append("--no-camera")
     if args.fake_infer:
@@ -381,6 +462,8 @@ def main() -> int:
     ap.add_argument("--camera", dest="no_camera", action="store_false",
                     help="let the spawned daemon use the real camera and model")
     ap.add_argument("--real-infer", dest="fake_infer", action="store_false")
+    ap.add_argument("--dormancy-ms", type=int,
+                    help="have the daemon SET this on the mock at startup")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()

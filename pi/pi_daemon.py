@@ -177,6 +177,26 @@ class Link:
             pass
 
 
+def set_param(link: Link, key: str, value: int, timeout: float = 2.0) -> int | None:
+    """SET a Tier 1 parameter and return the value the firmware says is in effect.
+
+    The return value is the point of this, not the setting. It goes into the run
+    manifest, so the record cannot disagree with the hardware -- which a
+    reflash-and-hope workflow could not guarantee.
+    """
+    link.send(f"SET,{key},{value}")
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        line = link.readline()
+        if line and line.startswith(f"CFG,{key},"):
+            try:
+                return int(line.split(",")[2])
+            except (IndexError, ValueError):
+                return None
+        time.sleep(0.002)
+    return None
+
+
 def sync_offset(link: Link, n: int = 5, timeout: float = 1.0) -> float | None:
     """Median Arduino->Pi clock offset, ms. Add to Arduino time to get Pi time.
 
@@ -311,6 +331,23 @@ class Daemon:
         print(f"# sync offset {offset:.1f} ms" if offset is not None
               else "# sync failed (no Arduino?)", flush=True)
 
+        # Swept parameters, set and verified before the clapperboard so the run
+        # record carries what the firmware actually has, not what we asked for.
+        for key, want in (("DORMANCY", self.args.dormancy_ms),
+                          ("PERSIST", self.args.persist_ms),
+                          ("REFRACTORY", self.args.refractory_ms)):
+            if want is None:
+                continue
+            got = set_param(link, key, want)
+            if got is None:
+                print(f"# WARN {key} not acknowledged -- firmware may predate "
+                      f"SET/GET; the value in effect is whatever was flashed",
+                      flush=True)
+            else:
+                print(f"# param {key}={got}"
+                      + (f" (requested {want}, CLAMPED)" if got != want else ""),
+                      flush=True)
+
         t_clap = clapperboard(self.args.clapperboard)
         print(f"# clapperboard {t_clap:.3f} {self.args.clapperboard:g}s", flush=True)
         print(f"# ready {time.time():.3f} uptime={uptime_s():.1f} "
@@ -363,6 +400,12 @@ def main() -> int:
     ap.add_argument("--conf-threshold", type=float, default=0.30,
                     help="below this, RES reports class_id -1")
     ap.add_argument("-o", "--out", default="events.csv")
+    ap.add_argument("--dormancy-ms", type=int,
+                    help="SET the Tier 1 dormancy timeout at startup; -1 = never halt")
+    ap.add_argument("--persist-ms", type=int,
+                    help="SET the Tier 1 persistence window at startup")
+    ap.add_argument("--refractory-ms", type=int,
+                    help="SET the Tier 1 refractory period at startup")
     ap.add_argument("--clapperboard", type=float, default=2.0,
                     help="seconds of full-core burn at start; 0 disables")
     ap.add_argument("--sync-n", type=int, default=5)

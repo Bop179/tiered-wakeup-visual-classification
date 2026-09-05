@@ -226,6 +226,52 @@ the one question you cannot answer.
 
 ---
 
+### Runtime-settable parameters — this saves you three days of being on call
+
+**Added Sep 5. Read this before you write the constants as `#define`s.**
+
+`DORMANCY_MS` is the swept variable of the headline experiment: six values × four event
+rates = **24 matrix cells**, run across Sep 14–16. If it is a compile-time constant,
+every one of those cells needs a reflash — which means *you personally have to be sitting
+at the rig for three days*, and the run script can only record what we claim was flashed
+rather than what the hardware actually had.
+
+So the three swept constants are settable over the serial link, per
+[`INTERFACE.md`](INTERFACE.md) §1.1:
+
+```
+Pi      → SET,DORMANCY,30000
+Arduino → CFG,DORMANCY,30000        the value now IN EFFECT
+Pi      → GET,DORMANCY
+Arduino → CFG,DORMANCY,30000
+```
+
+| Key | Units | Range, clamp outside it | Default on reset |
+|---|---|---|---|
+| `DORMANCY` | ms | `0`–`3600000`, or **`-1` = never halt** | 30000 |
+| `PERSIST` | ms | `0`–`5000` | 40 |
+| `REFRACTORY` | ms | `0`–`60000` | 500 |
+
+Four rules, and the first is the one that matters:
+
+1. **`CFG` reports the value in effect, never the value requested.** Clamp an
+   out-of-range value and return the *clamped* figure. `run_experiment.py` writes that
+   number straight into the run manifest, so a clamp or a typo shows up in the record
+   instead of silently mislabelling a matrix cell.
+2. Unknown key → `# ERR unknown key <key>` and **no `CFG`**. The absence of a `CFG` is
+   how the Pi detects firmware older than the key it asked for.
+3. **RAM only — do not touch EEPROM.** The daemon sets all three at every run start, so
+   persistence buys nothing, and 24 cells a day would start eating the write budget.
+4. A `SET` arriving mid-event applies **after** that event finishes. Changing the
+   refractory period underneath a running timer is a race for no benefit.
+
+Keep them as ordinary `volatile`-free globals initialised to the defaults above, and the
+firmware behaves exactly as this brief describes if nobody ever sends a `SET`.
+
+A working reference implementation is in `tools/mock_arduino.py` (`handle_config`), and
+`python3 tools/mock_arduino.py --self-test` exercises it — including the clamps and the
+unknown-key case. Run it and read the output; that is the behaviour to match.
+
 ## 3. What to deliver, and when
 
 | When | Deliverable | Done means |
@@ -233,15 +279,98 @@ the one question you cannot answer.
 | **Sep 6** | Phototransistor package checked | You know whether PT204-6B works or you are on the fallback. One message to Chris either way. |
 | **Sep 7** | Sensor sees the monitor | Scope trace of the **raw, unfiltered** sensor output showing a clear step on a patch flash. If it does not, swap the sensor that day. |
 | **Sep 8** | Analog chain complete | LED on the comparator fires on a patch flash and does **not** fire on room lighting. **Report the false-trigger rate over a 5-minute quiet window.** |
-| **Sep 9** | `tools/mock_pi.py` + `firmware/tier1_firmware/tier1_firmware.ino` | Firmware runs the full state machine against the mock over USB, with no Pi. `EVT` lines are well-formed and the Uno measurably drops to µA between events. |
+| **Sep 9** | `tools/mock_pi.py` + `firmware/tier1_firmware/tier1_firmware.ino` | Firmware runs the full state machine against the mock over USB, with no Pi. `EVT` lines are well-formed, `SET`/`GET` round-trip with clamping, and the Uno measurably drops to µA between events. |
 | **Sep 10** | Integration, in person | §2.5 of `INTERFACE.md` wiring checklist **meter-verified before anything touches GPIO3**, then SYNC → EVT → RES → HALT → wake. |
 | **Sep 13** | `docs/trigger_characterization.md` | Schematic with final values, the threshold × contrast sweep (≥ 6 trimmer positions), and Tier 0 / Tier 1 DMM current figures. |
+
+### `tools/mock_pi.py` — what it has to do
+
+It stands in for the Pi so the firmware is fully testable with nothing but a USB cable.
+Mirror of `tools/mock_arduino.py`, which you can read for the shape.
+
+- Connect to the Arduino's USB serial (`/dev/cu.usbmodem*` on a Mac) at 9600 8N1.
+- Print `# ready` on connect — the firmware waits for exactly this before sending a
+  pending `EVT` after a wake.
+- Answer `EVT` with `ACK` immediately, then `RES,<class>,<conf>,<latency>` after a
+  configurable delay (default ~100 ms, to imitate a real inference).
+- Answer `SYNC,<t>` with `SYNC,<own ms>`.
+- **Send `SET,DORMANCY,<ms>` on connect and check the `CFG` that comes back**, so the
+  configuration path is exercised the same way the real daemon exercises it.
+- Answer `HALT` with `ACK`, then **go silent for a configurable ~30 s** to imitate a
+  halted-then-booting Pi, then print `# ready` again. This is the only way to test the
+  boot path without a Pi, and the boot path is where the misses come from.
+- Ignore every line starting with `#`, and drop malformed lines without wedging.
+- Count and print: events sent, ACKs, RES sent, timeouts. A summary at exit.
+
+A `--flaky` mode that drops one message in ten is worth twenty minutes — it is the
+cheapest way to prove the firmware never blocks waiting for something that will not come.
 
 Build the analog chain **one stage at a time and verify each before adding the next.** A four-stage
 chain debugged only at its output is a bad afternoon; a chain verified stage by stage is a good
 hour. Scope or meter after every stage.
 
-## 4. When you are blocked
+## 4. After build week — Sep 14 to 22
+
+Your brief used to stop at Sep 13. It should not: three of the four remaining
+deliverables need something from you.
+
+### Sep 14–16, the experiment matrix
+
+With `SET,DORMANCY` implemented **you are not needed at the rig**, which is the point of
+building it. What you *are* on the hook for:
+
+- **Tier 0 must not drift between cells.** The matrix runs for three days and compares
+  cells against each other; a trimmer knocked between Tuesday and Thursday silently
+  invalidates the comparison. Lock the trimmer (nail varnish, hot glue, a dab of epoxy)
+  once the ROC sweep is done, and **record the final wiper voltage** in
+  `docs/trigger_characterization.md`. If it has to be re-adjusted mid-matrix, say so
+  loudly — the affected runs get re-run, not quietly averaged in.
+- Be reachable. A Tier 0 fault during a run looks exactly like a low detection rate,
+  which is also the result we are trying to measure.
+
+### Sep 13, the ROC data — in a specific format
+
+`analysis/plots.py` draws your ROC curve straight from **`data/tier0_roc.csv`**. Write it
+in exactly these columns or the figure will not build:
+
+```csv
+trimmer,contrast,false_per_min,detect_rate,n_events,notes
+2.5,0.80,0.4,0.95,40,shroud fitted
+2.5,0.40,0.4,0.62,40,
+4.0,0.80,0.0,0.71,40,room lights off
+```
+
+- `trimmer` — turns from the CCW end, or the wiper voltage; whichever you use, be
+  consistent, because it becomes the series label on the plot.
+- `false_per_min` — from the quiet-window count, not estimated.
+- `detect_rate` — detections ÷ `n_events`, 0–1.
+- One row per (trimmer, contrast) cell. **≥ 6 trimmer positions.**
+
+The prose write-up still goes in `docs/trigger_characterization.md`; this CSV is just the
+machine-readable half of the same measurements.
+
+### Sep 18, the video
+
+The cascade firing is the shot that makes the architecture legible, and it is yours: the
+comparator LED lighting, then the Uno waking, then the Pi's power trace stepping up. Have
+the LED on the comparator output still fitted on Sep 18 — do not tidy it away after
+debugging, it is the only visible evidence Tier 0 exists.
+
+### Before Sep 19, transport
+
+**Tier 0 on a breadboard will not survive being carried to the showcase.** Loose jumpers
+in a four-stage analog chain are the single most likely way this rig arrives dead on
+Sep 22.
+
+- Mount Tier 0, the Uno and the Pi on **one rigid board** while everything is wired and
+  working — not on Sep 21.
+- Strain-relieve the sensor lead and the four wires crossing to the Pi (a zip tie to the
+  board is enough).
+- Photograph the working breadboard before moving anything, so a knocked wire can be put
+  back from a picture rather than from memory.
+- Bring the DMM and a spare of each passive you used.
+
+## 5. When you are blocked
 
 Message Chris. Specifically, message immediately if:
 
