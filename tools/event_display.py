@@ -12,10 +12,10 @@ Displays, full screen on a monitor the rig watches:
 
 Two independent regions, and the separation is the point:
 
-  TRIGGER PATCH  a plain luminance square in a corner, which Tier 0's photosensor
-                 is aimed at. Its contrast sweeps on its own, so Tier 0's ROC is
+  TRIGGER PATCH  a plain luminance square in a corner, which Tier 1's photosensor
+                 is aimed at. Its contrast sweeps on its own, so Tier 1's ROC is
                  not confounded by whether a given photo is a dark night scene.
-  IMAGE REGION   what the HQ camera frames and Tier 2 classifies.
+  IMAGE REGION   what the HQ camera frames and Tier 3 classifies.
 
 Arrival distribution
 --------------------
@@ -31,8 +31,8 @@ Writes gen.csv per docs/INTERFACE.md section 5, one row at each flash ONSET,
 flushed immediately. The timestamp is taken right after the frame flip returns,
 so it is as close to photons as this side can get.
 
-Sub-threshold flicker events are injected as Tier 0 false-positive bait. They are
-stimulus, logged with image_id=NONE and their real contrast; a Tier 0 firing on
+Sub-threshold flicker events are injected as Tier 1 false-positive bait. They are
+stimulus, logged with image_id=NONE and their real contrast; a Tier 1 firing on
 one is a false positive, not a miss.
 
 --dry-run walks the identical schedule with no window and no pygame, so the log

@@ -18,7 +18,7 @@ Figures, in the order they should appear in the write-up:
               that makes the boot cost obvious at a glance.
   duration    detection rate against event duration, showing the blind window.
   quantization  INT8 vs FP32: latency, energy per inference, accuracy.
-  roc         Tier 0 detection rate against false-trigger rate.
+  roc         Tier 1 detection rate against false-trigger rate.
 
 Chart conventions, applied deliberately
 ---------------------------------------
@@ -288,7 +288,7 @@ def _mean(rs, fn):
 
 
 def fig_roc(roc_csv: Path, C, args, plt):
-    """Tier 0: detection rate against false triggers per minute."""
+    """Tier 1: detection rate against false triggers per minute."""
     import csv as _csv
     if not roc_csv.exists():
         return None
@@ -319,7 +319,7 @@ def fig_roc(roc_csv: Path, C, args, plt):
                     va="center")
     ax.set_xlabel("false triggers per minute")
     ax.set_ylabel("detection rate")
-    ax.set_title("Tier 0: sensitivity against false triggers")
+    ax.set_title("Tier 1: sensitivity against false triggers")
     ax.legend(loc="lower right")
     fig.tight_layout()
     return fig
@@ -337,7 +337,7 @@ def main() -> int:
     ap.add_argument("--dark", action="store_true", help="dark steps, for slides")
     ap.add_argument("--constants", type=Path, default=REPO / "data" / "constants.json")
     ap.add_argument("--roc-csv", type=Path,
-                    default=REPO / "data" / "tier0_roc.csv")
+                    default=REPO / "data" / "tier1_roc.csv")
     ap.add_argument("--min-boot-s", type=float, default=8.0)
     ap.add_argument("--min-dwell-s", type=float, default=1.0)
     ap.add_argument("--format", default="png", choices=["png", "pdf", "svg"])

@@ -1,6 +1,6 @@
 # `images/` — the stimulus set
 
-ImageNet validation JPEGs that `tools/event_display.py` flashes on the monitor and Tier 2
+ImageNet validation JPEGs that `tools/event_display.py` flashes on the monitor and Tier 3
 classifies. **Gitignored** — a few hundred JPEGs are not repo contents, and ImageNet is not ours
 to redistribute.
 
@@ -68,9 +68,9 @@ wrong — a bug worth catching on the Mac in one CPU-minute rather than on the P
 
 ## Display notes
 
-- Monitor at **100% brightness** for every run. Lower settings use backlight PWM, which Tier 0's
+- Monitor at **100% brightness** for every run. Lower settings use backlight PWM, which Tier 1's
   30–50 Hz low-pass may not fully reject.
 - Camera perpendicular to the screen, fixed exposure, slight defocus to kill moiré.
 - The trigger patch is drawn by `event_display.py`, not stored here. Its contrast is a swept
-  parameter and deliberately independent of image content — that is why Tier 0's ROC is not
+  parameter and deliberately independent of image content — that is why Tier 1's ROC is not
   confounded by whether a given photo happens to be a dark night scene.

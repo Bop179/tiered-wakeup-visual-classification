@@ -135,7 +135,7 @@ def main() -> int:
     g.add_argument("--duration-ms", type=int, default=15000)
     g.add_argument("--contrast", type=float, default=0.8)
     g.add_argument("--dormancy-ms", type=int, required=True,
-                   help="SET on Tier 1 over serial at run start. -1 = never halt")
+                   help="SET on Tier 2 over serial at run start. -1 = never halt")
     g.add_argument("--n-events", type=int, default=40)
     g.add_argument("--model", choices=["int8", "fp32"], default="int8")
     g.add_argument("--dwell-dist", choices=["exponential", "fixed"],
@@ -143,7 +143,7 @@ def main() -> int:
     g.add_argument("--flicker-rate", type=float, default=0.0)
     g.add_argument("--flicker-contrast", type=float, default=0.15)
     g.add_argument("--trimmer", default="",
-                   help="free text: Tier 0 trimmer position, for the ROC sweep")
+                   help="free text: Tier 1 trimmer position, for the ROC sweep")
 
     ap.add_argument("--host", default=os.environ.get("PI_HOST", "pi"),
                     help="ssh target for the Pi (default: $PI_HOST or 'pi')")
@@ -278,7 +278,7 @@ def main() -> int:
             print(f"  scp failed: {r.stderr.strip()}\n"
                   f"  fetch by hand:  scp '{src}*' {run_dir}/", file=sys.stderr)
 
-    # The value Tier 1 says is IN EFFECT, read back from its CFG reply. This is
+    # The value Tier 2 says is IN EFFECT, read back from its CFG reply. This is
     # the number that goes in the record -- --dormancy-ms is only what we asked
     # for, and a clamped or unacknowledged SET would otherwise be invisible.
     log = run_dir / "daemon.log"
@@ -292,12 +292,12 @@ def main() -> int:
                 manifest["dormancy_ms_verified"] = verified
                 if verified != args.dormancy_ms:
                     print(f"  WARNING: asked for dormancy {args.dormancy_ms} ms but "
-                          f"Tier 1 reports {verified} ms in effect. The manifest "
+                          f"Tier 2 reports {verified} ms in effect. The manifest "
                           f"records {verified}.")
                 break
             if line.startswith("# WARN DORMANCY not acknowledged"):
                 manifest["dormancy_ms_verified"] = None
-                print("  WARNING: Tier 1 did not acknowledge SET,DORMANCY. The "
+                print("  WARNING: Tier 2 did not acknowledge SET,DORMANCY. The "
                       "firmware may predate SET/GET, in which case the dormancy in "
                       "effect is whatever was last flashed and this run's parameter "
                       "is UNVERIFIED.")
