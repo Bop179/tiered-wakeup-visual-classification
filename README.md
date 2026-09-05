@@ -28,12 +28,12 @@ Each tier only decides whether the next one needs to wake up.
 
 | Tier | Hardware | Job | Power |
 |---|---|---|---|
-| **0** | Photosensor → op-amp filter chain → comparator, all discrete | Detect a *change* in incident light. No clock, no code. | ~5 mW, always on |
-| **1** | Arduino Uno, INT0 + power-down sleep | Confirm the trigger persisted, reject one-off noise, decide when to wake and when to re-halt Tier 2 | µW asleep, ~20 mW awake |
-| **2** | Raspberry Pi 4 + HQ camera, MobileNetV2 INT8 via TFLite | Capture a frame and classify it | ~2.5 W awake, ~0.5 W halted |
+| **1** | Photosensor → op-amp filter chain → comparator, all discrete | Detect a *change* in incident light. No clock, no code. | ~5 mW, always on |
+| **2** | Arduino Uno, INT0 + power-down sleep | Confirm the trigger persisted, reject one-off noise, decide when to wake and when to re-halt Tier 3 | µW asleep, ~20 mW awake |
+| **3** | Raspberry Pi 4 + HQ camera, MobileNetV2 INT8 via TFLite | Capture a frame and classify it | ~2.5 W awake, ~0.5 W halted |
 
 ```
-   light ──▶ [Tier 0: analog change detector] ──comparator──▶ [Tier 1: Uno]
+   light ──▶ [Tier 1: analog change detector] ──comparator──▶ [Tier 2: Uno]
                       ~5 mW, always on          D2/INT0        µW asleep
                                                                   │
                                             ┌─────────────────────┴──────────────────┐
@@ -41,13 +41,13 @@ Each tier only decides whether the next one needs to wake up.
                                      (open drain)                             EVT / ACK / RES
                                             └─────────────────────┬──────────────────┘
                                                                   ▼
-                                                   [Tier 2: Pi 4 + HQ camera]
+                                                   [Tier 3: Pi 4 + HQ camera]
                                                     ~2.5 W awake, ~0.5 W halted
 ```
 
-Tier 0 is purely analog: a high-pass to reject the ambient DC level, a gain stage, a 30–50 Hz
+Tier 1 is purely analog: a high-pass to reject the ambient DC level, a gain stage, a 30–50 Hz
 low-pass to kill mains and display flicker, and a comparator whose trimmer sets the threshold.
-Tier 1 sleeps between interrupts, validates persistence before escalating, and gates Tier 2 over a
+Tier 2 sleeps between interrupts, validates persistence before escalating, and gates Tier 3 over a
 serial link plus an open-drain wake line — halting the Pi after a configurable period of silence.
 **That timeout is the parameter the whole experiment turns on.**
 
@@ -74,12 +74,12 @@ black dwell (length sets the event rate)
 
 Two independent regions are on screen at once, and the separation is the point:
 
-- **Trigger patch** — a plain luminance square in a corner, which Tier 0's photosensor is aimed at.
-  Its contrast sweeps on its own, so Tier 0's ROC is not confounded by whether a given photo happens
+- **Trigger patch** — a plain luminance square in a corner, which Tier 1's photosensor is aimed at.
+  Its contrast sweeps on its own, so Tier 1's ROC is not confounded by whether a given photo happens
   to be a dark night scene.
-- **Image region** — what the HQ camera frames and Tier 2 classifies.
+- **Image region** — what the HQ camera frames and Tier 3 classifies.
 
-Tier 2 runs **stock MobileNetV2 INT8 on ImageNet-1k** — no training, no dataset collection — and
+Tier 3 runs **stock MobileNetV2 INT8 on ImageNet-1k** — no training, no dataset collection — and
 fires when it sees the target class, **banana**: in the standard label set *and* holdable, so the
 showcase demo is the same code path as the benchmark. A standard workload makes joules-per-inference
 comparable against published figures, and a real ~71%-top-1 task produces an actual
@@ -87,7 +87,7 @@ accuracy-versus-power curve instead of one pinned at 100%. Running the model off
 images first (`tools/reference_predict.py`) separates model error from screen-capture degradation.
 
 Sweepable: event rate, event duration, trigger-patch contrast, and deliberately sub-threshold
-flicker injected as Tier 0 false-positive bait.
+flicker injected as Tier 1 false-positive bait.
 
 ## The prediction, before any measurement
 
@@ -126,9 +126,9 @@ naive model, which overstates average power by 60% at a 15 s mean interval.
 ## Repository
 
 ```
-docs/     INTERFACE.md (frozen Tier1↔Tier2 contract) · TEAMMATE_BRIEF.md (Tier 0/1 spec)
+docs/     INTERFACE.md (frozen Tier2↔Tier3 contract) · TEAMMATE_BRIEF.md (Tier 1/2 spec)
           EXPERIMENTS.md (matrix + run log) · trigger_characterization.md
-firmware/ tier1_firmware/          Arduino Uno — Juan
+firmware/ tier2_firmware/          Arduino Uno — Juan
 pi/       pi_daemon.py · classify.py · models/
 tools/    event_display.py · reference_predict.py · fnb58_logger.py
           mock_arduino.py · mock_pi.py · run_experiment.py · latency_bench.py
@@ -145,7 +145,7 @@ written against, and it contains the two ways to destroy a Pi.
 brew install hidapi
 tools/setup_mac.sh                  # builds .venv from tools/requirements.txt
 
-# Pi (Tier 2)
+# Pi (Tier 3)
 pi/models/fetch_models.sh           # MobileNetV2 INT8 + FP32 + labels
 python3 -m venv --system-site-packages .venv   # picamera2 is a system package
 .venv/bin/pip install -r pi/requirements.txt
@@ -168,6 +168,6 @@ analysis/plots.py data/            # Pareto family, ROC, energy breakdown
 The halted Pi still draws ~0.5 W because `WAKE_ON_GPIO=1` requires `POWER_OFF_ON_HALT=0`; that caps
 achievable savings and it is an architectural constraint, not a measurement error. Results are
 reported **both** as measured end-to-end savings **and** as projected savings for a truly
-power-gated Tier 2, clearly labeled. Board-level Tier 1 sleep current is ~20 mA regardless of
+power-gated Tier 3, clearly labeled. Board-level Tier 2 sleep current is ~20 mA regardless of
 firmware because the Uno's power LED and USB-serial chip cannot be disabled in software; the
 ATmega's own current is reported separately and the distinction is stated.

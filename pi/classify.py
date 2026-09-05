@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tier 2 capture + classify: picamera2 -> MobileNetV2 (INT8 or FP32) via TFLite.
+"""Tier 3 capture + classify: picamera2 -> MobileNetV2 (INT8 or FP32) via TFLite.
 
 Importable as a library by pi_daemon.py and tools/latency_bench.py, and runnable
 on its own to check the camera and the model:

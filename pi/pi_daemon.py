@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tier 2 daemon: serial listener -> capture -> classify -> RES, and halt on demand.
+"""Tier 3 daemon: serial listener -> capture -> classify -> RES, and halt on demand.
 
     pi/pi_daemon.py --port /dev/serial0 --model int8 --out data/<run_id>/events.csv
     pi/pi_daemon.py --port /dev/ttys00X --no-camera --no-halt   # against a mock
@@ -178,7 +178,7 @@ class Link:
 
 
 def set_param(link: Link, key: str, value: int, timeout: float = 2.0) -> int | None:
-    """SET a Tier 1 parameter and return the value the firmware says is in effect.
+    """SET a Tier 2 parameter and return the value the firmware says is in effect.
 
     The return value is the point of this, not the setting. It goes into the run
     manifest, so the record cannot disagree with the hardware -- which a
@@ -258,7 +258,7 @@ class Daemon:
             ard_ms, peak, dur_ms = (int(parts[1]), int(parts[2]), int(parts[3]))
         except (IndexError, ValueError):
             # Parse before acking. An ACK promises a RES, so acking a line whose
-            # fields turn out to be junk would leave Tier 1 waiting out
+            # fields turn out to be junk would leave Tier 2 waiting out
             # RES_TIMEOUT_MS for a result that can never come.
             link.send("# ERR bad EVT")
             return
@@ -401,11 +401,11 @@ def main() -> int:
                     help="below this, RES reports class_id -1")
     ap.add_argument("-o", "--out", default="events.csv")
     ap.add_argument("--dormancy-ms", type=int,
-                    help="SET the Tier 1 dormancy timeout at startup; -1 = never halt")
+                    help="SET the Tier 2 dormancy timeout at startup; -1 = never halt")
     ap.add_argument("--persist-ms", type=int,
-                    help="SET the Tier 1 persistence window at startup")
+                    help="SET the Tier 2 persistence window at startup")
     ap.add_argument("--refractory-ms", type=int,
-                    help="SET the Tier 1 refractory period at startup")
+                    help="SET the Tier 2 refractory period at startup")
     ap.add_argument("--clapperboard", type=float, default=2.0,
                     help="seconds of full-core burn at start; 0 disables")
     ap.add_argument("--sync-n", type=int, default=5)

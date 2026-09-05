@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Latency breakdown for Tier 2. Run on the Pi, Sep 7, before anything depends on it.
+"""Latency breakdown for Tier 3. Run on the Pi, Sep 7, before anything depends on it.
 
     tools/latency_bench.py --model int8 -n 200
     tools/latency_bench.py --model int8 --model-only -n 500     # no camera needed

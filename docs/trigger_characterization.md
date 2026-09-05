@@ -1,7 +1,7 @@
-# Tier 0 trigger characterization
+# Tier 1 trigger characterization
 
 **Owner: Juan. Due Sep 13.** Fill this in as you build — it is a lab notebook, not a report written
-afterwards. Figures from here become the Tier 0 ROC in the final write-up.
+afterwards. Figures from here become the Tier 1 ROC in the final write-up.
 
 ---
 
@@ -61,14 +61,14 @@ wiper voltage. The matrix runs for three days and compares cells against each ot
 trimmer nudged partway through silently invalidates that comparison, and nothing in the
 data would reveal it.
 
-## 5. Tier 0 and Tier 1 current (Sep 13)
+## 5. Tier 1 and Tier 2 current (Sep 13)
 
 DMM in series. These are near-constants and only need measuring once; the FNB58 is on the Pi rail.
 
 | What | Condition | Current | Voltage | Power |
 |---|---|---|---|---|
-| Tier 0 total | quiescent | | 5 V | |
-| Tier 0 total | triggered | | 5 V | |
+| Tier 1 total | quiescent | | 5 V | |
+| Tier 1 total | triggered | | 5 V | |
 | **ATmega328P only** | power-down sleep | | 5 V | |
 | **ATmega328P only** | awake, idle | | 5 V | |
 | Uno board | power-down sleep | | 5 V | expect ~20 mA — LED + USB chip |

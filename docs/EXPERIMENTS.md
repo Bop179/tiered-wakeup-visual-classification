@@ -54,7 +54,7 @@ catches the event and a booting one sometimes does not — pick it from the meas
 | events per cell | ≥ 40 |
 
 > **No reflash per cell.** `run_experiment.py` passes `--dormancy-ms` to the daemon, which
-> `SET`s it on Tier 1 over the serial link and records the `CFG` value Tier 1 reports as
+> `SET`s it on Tier 2 over the serial link and records the `CFG` value Tier 2 reports as
 > *in effect* into `manifest.json` as `dormancy_ms_verified`. That is the number to trust
 > — `--dormancy-ms` is only what was asked for. If a run's manifest shows
 > `dormancy_ms_verified: null`, the firmware did not acknowledge the `SET` and **that
@@ -94,7 +94,7 @@ width of that smear is the boot-time jitter**, which is a free extra result.
 Note the model predicts detection saturates at `1/(1 + λ·T_boot)`, not at 1.0, even for events
 that comfortably outlive a boot — the arrivals swallowed *during* each boot are lost regardless
 of duration. At a 120 s mean interval that ceiling is 0.8. If the measured plateau sits at 1.0,
-Tier 1 is buffering more than the one pending event the contract allows.
+Tier 2 is buffering more than the one pending event the contract allows.
 
 ### 3 — Secondary: INT8 vs FP32
 
@@ -111,13 +111,13 @@ Report latency, **energy per inference net of idle**, and accuracy against
 `tools/reference_predict.py`. Expect the race-to-idle result: INT8 may draw *more* instantaneous
 power while using less energy per inference. Power alone cannot distinguish efficient from stalled.
 
-### 4 — Secondary: Tier 0 ROC
+### 4 — Secondary: Tier 1 ROC
 
 Mostly collected by Juan during build week (`trigger_characterization.md`); folds in here as a
 figure. Trimmer position × patch contrast → detection rate vs false-trigger rate.
 
 Sub-threshold flicker events are injected as false-positive bait and logged in `gen.csv` with
-`image_id=NONE`. A Tier 0 firing on one is a false positive.
+`image_id=NONE`. A Tier 1 firing on one is a false positive.
 
 ### 5 — Tertiary: latency by Pi state
 
@@ -144,5 +144,5 @@ distribution, not just the mean — the halted case's variance is the boot-time 
 6. `RES` count vs `GEN` count reconciled. Unexplained gaps get investigated, not averaged away.
 7. Manifest written, and `dormancy_ms_verified` matches the intended cell. **A run without
    a manifest is a run that did not happen.**
-8. Tier 0's trimmer has not moved since the ROC sweep. If it has, note it — the cells
+8. Tier 1's trimmer has not moved since the ROC sweep. If it has, note it — the cells
    before and after are not comparable.

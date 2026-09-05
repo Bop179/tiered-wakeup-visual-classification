@@ -1,11 +1,11 @@
-# INTERFACE — the contract between Tier 1 and Tier 2
+# INTERFACE — the contract between Tier 2 and Tier 3
 
 **Status: frozen as of 2026-09-05.** Both halves are written against this document.
 If something here has to change, it changes *here first*, in a commit, and the other
 owner is told. Do not diverge locally.
 
-Owners: **Tier 0 + Tier 1 (analog trigger, Arduino firmware) — Juan.**
-**Tier 2 + instrumentation (Pi, daemon, power logging, analysis) — Chris.**
+Owners: **Tier 1 + Tier 2 (analog trigger, Arduino firmware) — Juan.**
+**Tier 3 + instrumentation (Pi, daemon, power logging, analysis) — Chris.**
 
 ---
 
@@ -43,7 +43,7 @@ So `Serial.println("# woke, peak=412");` is always safe. Protocol lines never st
 
 | Direction | Message | Meaning |
 |---|---|---|
-| Arduino → Pi | `EVT,<t_ms>,<peak>,<duration_ms>` | A validated Tier 0 event. |
+| Arduino → Pi | `EVT,<t_ms>,<peak>,<duration_ms>` | A validated Tier 1 event. |
 | Arduino → Pi | `HALT` | Dormancy timeout expired. Pi should halt. |
 | Pi → Arduino | `ACK` | Last message received and accepted. |
 | Pi → Arduino | `RES,<class_id>,<confidence>,<latency_ms>` | Classification result for the most recent `EVT`. |
@@ -56,8 +56,8 @@ So `Serial.println("# woke, peak=412");` is always safe. Protocol lines never st
 **Fields**
 
 - `t_ms` — sender's own `millis()` / monotonic milliseconds. Unsigned integer. **Wraps at 2^32 ms ≈ 49.7 days; nobody needs to handle the wrap.** Never treat this as wall-clock.
-- `peak` — Tier 1's ADC reading at the event peak, `0..1023`. Integer. Recorded for the Tier 0 ROC; the Pi does not act on it.
-- `duration_ms` — how long the trigger stayed asserted before Tier 1 accepted it. Integer.
+- `peak` — Tier 2's ADC reading at the event peak, `0..1023`. Integer. Recorded for the Tier 1 ROC; the Pi does not act on it.
+- `duration_ms` — how long the trigger stayed asserted before Tier 2 accepted it. Integer.
 - `class_id` — integer index into `pi/models/labels.txt`. **`-1` means "no confident classification"** (below `--conf-threshold`).
 - `confidence` — float, `0.000`–`1.000`, three decimals.
 - `latency_ms` — integer, measured on the Pi from `EVT` line received to result ready. Includes capture.
@@ -73,7 +73,7 @@ each of those cells needs a reflash, which means Juan has to be physically prese
 every cell on Sep 14–16, and the run script can only record *what you say you flashed*.
 Both of those are avoidable.
 
-So Tier 1 exposes its constants over the link:
+So Tier 2 exposes its constants over the link:
 
 ```
 Pi      → SET,DORMANCY,30000
@@ -109,7 +109,7 @@ Rules:
 1. **Every `EVT` gets exactly one `ACK`,** sent by the Pi as soon as the line is parsed — *before*
    capture, not after. `ACK` means "I am awake and I heard you", nothing more.
    **An `EVT` whose fields will not parse is not acked at all** (rule 4 takes over). An `ACK`
-   promises a `RES`; acking a line that can never produce one would leave Tier 1 waiting out
+   promises a `RES`; acking a line that can never produce one would leave Tier 2 waiting out
    `RES_TIMEOUT_MS` and would count as a miss for the wrong reason.
 2. `RES` follows its `ACK` by `latency_ms`. If the Pi cannot classify (camera error, timeout) it
    still sends `RES,-1,0.000,<latency_ms>` so counts stay aligned. **Never stay silent.**
@@ -191,13 +191,13 @@ margin. If it ever proves flaky, the fix is a level shifter, not a pull-up to 5 
 ### 2.3 LM339N output is open-collector
 
 The comparator **cannot source current.** Its output needs a **10 kΩ pull-up to 5 V** or it will
-never go high and Tier 1 will never see a trigger. This is the single most common way this circuit
+never go high and Tier 2 will never see a trigger. This is the single most common way this circuit
 appears dead when it is actually working.
 
 ### 2.4 Power
 
 The Arduino and the Pi are on **separate supplies**. Do not power the Arduino from a Pi USB port:
-the Pi's USB rail is not guaranteed while it is halted, and Tier 1 must stay alive precisely then.
+the Pi's USB rail is not guaranteed while it is halted, and Tier 2 must stay alive precisely then.
 Do not power the Pi from the Arduino. Only **GND, wake line and the two serial wires** cross between
 them — four wires total.
 
@@ -252,7 +252,7 @@ shutdown prevents the wake from ever being seen as an edge.
 5. The event that caused the wake is **recorded as a miss** unless the stimulus was still present
    when the daemon became ready. That miss is the measurement, not a bug.
 
-**Only one pending event is buffered.** Events arriving during boot overwrite it. Tier 1 has no
+**Only one pending event is buffered.** Events arriving during boot overwrite it. Tier 2 has no
 queue and does not need one.
 
 ### Getting wake-from-halt working on the Pi
@@ -341,9 +341,9 @@ t_mac,event_idx,image_id,true_class,true_class_id,patch_contrast,duration_ms,is_
 - `duration_ms` — how long the flash was held
 - `is_target` — `1` if `true_class` is the target class (banana), else `0`
 
-Sub-threshold flicker events injected as Tier 0 false-positive bait are logged with
+Sub-threshold flicker events injected as Tier 1 false-positive bait are logged with
 `image_id=NONE`, `true_class=NONE`, `true_class_id=-1`, `is_target=0` and their actual
-`patch_contrast`. They are stimulus, and a Tier 0 firing on one is a false positive.
+`patch_contrast`. They are stimulus, and a Tier 1 firing on one is a false positive.
 
 ### `power.csv` — Mac, written by `fnb58_logger.py`
 
@@ -374,7 +374,7 @@ and free-text notes. **A run without a manifest is a run that did not happen.**
 
 ## 6. Firmware constants Juan owns
 
-Exposed at the top of `tier1_firmware.ino`. The three marked runtime-settable are also
+Exposed at the top of `tier2_firmware.ino`. The three marked runtime-settable are also
 reachable over the link via `SET`/`GET` (§1.1) — **that is how the matrix sweeps them, so
 no cell needs a reflash.** The rest are compile-time.
 

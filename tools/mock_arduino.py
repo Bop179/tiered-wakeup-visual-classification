@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stand-in for Tier 1, so the whole Pi path can be exercised with no Arduino.
+"""Stand-in for Tier 2, so the whole Pi path can be exercised with no Arduino.
 
     tools/mock_arduino.py --self-test                  # no deps, no hardware at all
     tools/mock_arduino.py --n-events 10 --mean-interval 3   # spawns pi_daemon on a pty
@@ -21,7 +21,7 @@ Three modes, in increasing order of how much has to exist:
   --port        Talks to a real port, for driving the Pi over a USB-TTL adapter
                 before the Arduino is finished.
 
-Emulates Tier 1's actual behaviour: exponential events, ACK/RES timeouts, the
+Emulates Tier 2's actual behaviour: exponential events, ACK/RES timeouts, the
 dormancy timer, HALT, and answering SYNC. It deliberately does NOT retransmit,
 because the real firmware does not either -- a lost event is data.
 """
@@ -127,7 +127,7 @@ class SerialLink(FdLink):
 # ------------------------------------------------------------------ the mock
 
 class MockArduino:
-    """Tier 1's state machine, minus the sleeping and the analog front end."""
+    """Tier 2's state machine, minus the sleeping and the analog front end."""
 
     # Defaults match docs/INTERFACE.md section 6; ranges match section 1.1.
     PARAMS = {"DORMANCY": (30000, -1, 3600000),
@@ -329,7 +329,7 @@ def self_test(args) -> int:
             failures.append(f"daemon wedged after {name}")
 
     # The daemon SETs the swept parameters at startup; wait_ready above answered
-    # them. If this landed, the Pi -> Tier 1 configuration path works end to end
+    # them. If this landed, the Pi -> Tier 2 configuration path works end to end
     # and the run manifest can record the value actually in effect.
     want_dorm = A.dormancy_ms
     if want_dorm is not None:
@@ -339,7 +339,7 @@ def self_test(args) -> int:
         if got != want_dorm:
             failures.append(f"daemon failed to SET DORMANCY: {got} != {want_dorm}")
 
-    # Clamping is a unit test of Tier 1's side, on its own queues so the replies
+    # Clamping is a unit test of Tier 2's side, on its own queues so the replies
     # do not land in the daemon's inbox. This is the behaviour Juan's firmware
     # must reproduce: CFG reports what is IN EFFECT, never what was requested.
     probe = MockArduino(QueueLink(deque(), deque()), args)

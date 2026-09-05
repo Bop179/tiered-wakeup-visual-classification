@@ -1,7 +1,8 @@
-# Tier 0 + Tier 1 — build brief (Juan)
+# Tier 1 + Tier 2 — build brief (Juan)
 
 **Revised 2026-09-05. This supersedes every earlier copy of this brief.**
-Three things changed and one deliverable was cancelled — see §0 first, then §1 onward is the spec.
+The tiers have been renumbered, three things changed, and one deliverable was cancelled — see §0
+first, then §1 onward is the spec.
 
 Read alongside [`INTERFACE.md`](INTERFACE.md), which is the frozen contract between your half and
 Chris's. Where the two disagree, `INTERFACE.md` wins.
@@ -10,7 +11,30 @@ Chris's. Where the two disagree, `INTERFACE.md` wins.
 
 ## 0. What changed since the brief you have
 
-### 0.1 Tier 0 is now a **visible-light change detector**, not an IR beam-break
+### 0.0 The tiers are renumbered — 0/1/2 became 1/2/3
+
+**Read this before anything else, because the old and new numbering overlap and that is a trap.**
+
+| Stage | Was | Is now |
+|---|---|---|
+| Analog trigger (photosensor, filters, comparator) | Tier 0 | **Tier 1** |
+| Arduino Uno (persistence, sleep, wake, dormancy) | Tier 1 | **Tier 2** |
+| Raspberry Pi 4 (capture + classify) | Tier 2 | **Tier 3** |
+
+> **Your scope has not changed.** You still own the analog trigger and the Arduino. They are just
+> called Tier 1 and Tier 2 now instead of Tier 0 and Tier 1.
+
+The trap: in your old brief **"Tier 1" meant the Arduino.** Everywhere in *this* document, "Tier 1"
+means the **analog stage**, and the Arduino is Tier 2. When you go back to an old message or an old
+note, translate it before acting on it.
+
+Two paths moved with the numbering:
+
+- `firmware/tier1_firmware/` → **`firmware/tier2_firmware/`**, and the sketch is
+  `tier2_firmware.ino`. If you already have a local clone, `git pull` will move it for you.
+- The ROC data file is **`data/tier1_roc.csv`** (§4), not `tier0_roc.csv`.
+
+### 0.1 Tier 1 is now a **visible-light change detector**, not an IR beam-break
 
 The stimulus is no longer a physical object breaking a beam. It is a **monitor** — a Mac script
 flashes ImageNet photographs on a screen that the Pi's camera watches, which gives exact ground
@@ -46,7 +70,7 @@ Fallbacks, in order of preference, both in the kit:
 ### 0.3 `event_generator.ino` is **cancelled**
 
 The monitor is the event generator now. The second Arduino, the five colored LEDs and the diffuser
-are all out. **Do not build it.** Your scope is Tier 0 and Tier 1, nothing else — this is a
+are all out. **Do not build it.** Your scope is Tier 1 and Tier 2, nothing else — this is a
 reduction in your workload, not a reshuffle.
 
 ### 0.4 Two things about running against a screen
@@ -60,13 +84,13 @@ reduction in your workload, not a reshuffle.
 
 ---
 
-## 1. What Tier 0 has to do
+## 1. What Tier 1 has to do
 
 Assert a digital line when incident light **changes** by more than an adjustable threshold, using no
 clock and no code, at roughly 5 mW. It must fire on a trigger-patch flash and **not** fire on room
 lighting, on someone walking past, or on the monitor's own refresh.
 
-It does not need to be smart. Tier 1 rejects one-off noise; Tier 0 only has to be cheap, always on,
+It does not need to be smart. Tier 2 rejects one-off noise; Tier 1 only has to be cheap, always on,
 and adjustable.
 
 ```
@@ -133,7 +157,7 @@ open-collector output, and it feeds the Uno's level-triggered INT0 wake directly
 
 **Add hysteresis:** 1 MΩ from OUT back to IN+. With the trimmer's ~2.5 kΩ source impedance that is
 ~12 mV of hysteresis — enough to stop the comparator chattering on slow edges. Without it, one
-event can generate a burst of interrupts and Tier 1 will see phantom events.
+event can generate a burst of interrupts and Tier 2 will see phantom events.
 
 **6 — A0 tap.** Take Arduino A0 from the low-pass output (stage 4), *before* the comparator, so the
 firmware can report `peak` in each `EVT`. Idle sits near 2.5 V ⇒ ADC ≈ 512.
@@ -144,7 +168,7 @@ circuit at all, is what makes stage-by-stage debugging fast.
 
 ---
 
-## 2. What Tier 1 has to do
+## 2. What Tier 2 has to do
 
 An Arduino Uno that validates triggers, gates the Pi, and gets out of the way.
 
@@ -198,7 +222,7 @@ where it matters: in the state the system spends most of its time in when dorman
 2. `detachInterrupt(0)` immediately, so the ISR does not re-fire while the line is still low.
 3. **Persistence check.** Poll D2 for `PERSIST_MS` (start at 40 ms). Sample A0 throughout and keep
    the maximum excursion from 512 as `peak`. If the line releases early, it was noise: log
-   `# noise`, re-arm, done. **This is Tier 1's entire reason to exist — do not skip it.**
+   `# noise`, re-arm, done. **This is Tier 2's entire reason to exist — do not skip it.**
 4. **Wake the Pi if halted:** hold D7 low ≥ 200 ms, release, wait for `# ready` (up to
    `BOOT_TIMEOUT_MS`). Do not send `EVT` before then; nothing is listening.
 5. **Send** `EVT,<millis()>,<peak>,<duration_ms>`.
@@ -279,9 +303,9 @@ unknown-key case. Run it and read the output; that is the behaviour to match.
 | **Sep 6** | Phototransistor package checked | You know whether PT204-6B works or you are on the fallback. One message to Chris either way. |
 | **Sep 7** | Sensor sees the monitor | Scope trace of the **raw, unfiltered** sensor output showing a clear step on a patch flash. If it does not, swap the sensor that day. |
 | **Sep 8** | Analog chain complete | LED on the comparator fires on a patch flash and does **not** fire on room lighting. **Report the false-trigger rate over a 5-minute quiet window.** |
-| **Sep 9** | `tools/mock_pi.py` + `firmware/tier1_firmware/tier1_firmware.ino` | Firmware runs the full state machine against the mock over USB, with no Pi. `EVT` lines are well-formed, `SET`/`GET` round-trip with clamping, and the Uno measurably drops to µA between events. |
+| **Sep 9** | `tools/mock_pi.py` + `firmware/tier2_firmware/tier2_firmware.ino` | Firmware runs the full state machine against the mock over USB, with no Pi. `EVT` lines are well-formed, `SET`/`GET` round-trip with clamping, and the Uno measurably drops to µA between events. |
 | **Sep 10** | Integration, in person | §2.5 of `INTERFACE.md` wiring checklist **meter-verified before anything touches GPIO3**, then SYNC → EVT → RES → HALT → wake. |
-| **Sep 13** | `docs/trigger_characterization.md` | Schematic with final values, the threshold × contrast sweep (≥ 6 trimmer positions), and Tier 0 / Tier 1 DMM current figures. |
+| **Sep 13** | `docs/trigger_characterization.md` | Schematic with final values, the threshold × contrast sweep (≥ 6 trimmer positions), and Tier 1 / Tier 2 DMM current figures. |
 
 ### `tools/mock_pi.py` — what it has to do
 
@@ -319,18 +343,18 @@ deliverables need something from you.
 With `SET,DORMANCY` implemented **you are not needed at the rig**, which is the point of
 building it. What you *are* on the hook for:
 
-- **Tier 0 must not drift between cells.** The matrix runs for three days and compares
+- **Tier 1 must not drift between cells.** The matrix runs for three days and compares
   cells against each other; a trimmer knocked between Tuesday and Thursday silently
   invalidates the comparison. Lock the trimmer (nail varnish, hot glue, a dab of epoxy)
   once the ROC sweep is done, and **record the final wiper voltage** in
   `docs/trigger_characterization.md`. If it has to be re-adjusted mid-matrix, say so
   loudly — the affected runs get re-run, not quietly averaged in.
-- Be reachable. A Tier 0 fault during a run looks exactly like a low detection rate,
+- Be reachable. A Tier 1 fault during a run looks exactly like a low detection rate,
   which is also the result we are trying to measure.
 
 ### Sep 13, the ROC data — in a specific format
 
-`analysis/plots.py` draws your ROC curve straight from **`data/tier0_roc.csv`**. Write it
+`analysis/plots.py` draws your ROC curve straight from **`data/tier1_roc.csv`**. Write it
 in exactly these columns or the figure will not build:
 
 ```csv
@@ -354,15 +378,15 @@ machine-readable half of the same measurements.
 The cascade firing is the shot that makes the architecture legible, and it is yours: the
 comparator LED lighting, then the Uno waking, then the Pi's power trace stepping up. Have
 the LED on the comparator output still fitted on Sep 18 — do not tidy it away after
-debugging, it is the only visible evidence Tier 0 exists.
+debugging, it is the only visible evidence Tier 1 exists.
 
 ### Before Sep 19, transport
 
-**Tier 0 on a breadboard will not survive being carried to the showcase.** Loose jumpers
+**Tier 1 on a breadboard will not survive being carried to the showcase.** Loose jumpers
 in a four-stage analog chain are the single most likely way this rig arrives dead on
 Sep 22.
 
-- Mount Tier 0, the Uno and the Pi on **one rigid board** while everything is wired and
+- Mount Tier 1, the Uno and the Pi on **one rigid board** while everything is wired and
   working — not on Sep 21.
 - Strain-relieve the sensor lead and the four wires crossing to the Pi (a zip tie to the
   board is enough).

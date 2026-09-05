@@ -10,7 +10,7 @@ Events arrive as a Poisson process of rate lambda. The Pi is awake or halted. An
 event arriving while awake is always caught (~100 ms). An event arriving while
 halted triggers a full boot -- T_boot at P_boot, camera blind throughout -- so it
 is caught only if the stimulus outlives the boot. Events arriving *during* a boot
-are lost outright (Tier 1 buffers only one pending event). After the last handled
+are lost outright (Tier 2 buffers only one pending event). After the last handled
 event the Pi stays awake for the dormancy timeout T_d, then halts.
 
 Exact solution, by renewal-reward
@@ -226,7 +226,7 @@ def simulate(p: Params, lam: float, t_d: float, duration_s: float,
     for _ in range(n_events):
         t_event += rng.expovariate(lam)
 
-        # An event during a boot is lost: nothing is listening, and Tier 1
+        # An event during a boot is lost: nothing is listening, and Tier 2
         # buffers only one pending event.
         if t_event < t_cursor:
             missed_blind += 1

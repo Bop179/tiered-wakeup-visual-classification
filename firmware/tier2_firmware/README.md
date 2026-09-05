@@ -1,6 +1,6 @@
-# `firmware/tier1_firmware/` — Tier 1, Arduino Uno (Juan)
+# `firmware/tier2_firmware/` — Tier 2, Arduino Uno (Juan)
 
-`tier1_firmware.ino` goes here. It is **not** in the repo yet because it is Juan's deliverable,
+`tier2_firmware.ino` goes here. It is **not** in the repo yet because it is Juan's deliverable,
 not something to be written for him — the interface contract is what he needs from our side, and
 that is already frozen.
 
@@ -9,12 +9,12 @@ that is already frozen.
 1. **[`docs/INTERFACE.md`](../../docs/INTERFACE.md)** — the frozen contract. Section 1 is the
    serial link, section 3 wake and halt, section 6 the firmware constants you own.
    **Section 2 is "the two ways to destroy a Pi". Read it before wiring anything.**
-2. **[`docs/TEAMMATE_BRIEF.md`](../../docs/TEAMMATE_BRIEF.md)** — the Tier 0 analog chain and the
-   Tier 1 spec in full.
+2. **[`docs/TEAMMATE_BRIEF.md`](../../docs/TEAMMATE_BRIEF.md)** — the Tier 1 analog chain and the
+   Tier 2 spec in full.
 
 ## The job in one paragraph
 
-Sleep in `SLEEP_MODE_PWR_DOWN`. Wake on the Tier 0 comparator via **INT0, level-triggered (`LOW`)**
+Sleep in `SLEEP_MODE_PWR_DOWN`. Wake on the Tier 1 comparator via **INT0, level-triggered (`LOW`)**
 on D2 — a powered-down Uno has its I/O clock stopped, so edge detection does not work and
 level-triggered is the only option. Confirm the trigger persisted for `PERSIST_MS` before believing
 it. Send `EVT` to the Pi, waking it first over the open-drain GPIO3 line if it is halted. After
