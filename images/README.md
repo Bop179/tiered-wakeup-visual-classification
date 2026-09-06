@@ -72,15 +72,67 @@ only subdirectories are walked.
 
 Recognised extensions: `.jpg .jpeg .png .bmp .gif`, case-insensitive, so `.JPEG` is fine.
 
+## How to build it
+
+```bash
+.venv/bin/python tools/fetch_stimulus.py            # --dry-run to check first
+```
+
+Pulls real ILSVRC-2012 validation JPEGs from the `evanarlian/imagenet_1k_resized_256` mirror on
+the HuggingFace datasets server — the official `imagenet-1k` repo is gated, this one is not.
+Images come resized to 256 on the short side: large enough to fill a monitor region for the
+camera, small enough that the whole set is ~5 MB. Re-running skips files already on disk, so a
+partial download is resumed rather than repeated.
+
+The script writes `manifest.csv` itself, and **resolves every class through
+`classify.class_id_for()` rather than trusting arithmetic.** The mirror labels in the 1000-class
+space, the model needs 1001, and a build where any class disagrees aborts before a single image
+is downloaded. That is the guard described above, applied at the point the indices are created
+rather than only where they are consumed.
+
 ## Balance
 
-A few hundred images across ~20 classes, roughly 20% target class (`banana`, id 955). Enough
-positives that detection rate has resolution at 40 events per matrix cell; few enough that a
-detector which always answers "banana" still scores badly.
+275 images across 25 classes, 50 of them `banana` (18.2%). Enough positives that detection rate
+has resolution at 40 events per matrix cell; few enough that a detector which always answers
+"banana" scores 18%.
+
+The 24 non-target classes are chosen, not sampled, and split into two groups:
+
+| Group | Classes | Why |
+|---|---|---|
+| **hard** (13) | lemon, orange, pineapple, Granny Smith, fig, spaghetti/butternut squash, zucchini, cucumber, bell pepper, ear of corn, hotdog, French loaf | Yellow, elongated or produce-shaped — the things a banana detector actually trips on. These are what give the false-positive rate any meaning. |
+| **easy** (11) | golden retriever, sports car, coffee mug, laptop, acoustic guitar, park bench, traffic light, umbrella, teapot, backpack, analog clock, barn | No relationship to bananas at all. Most of a real-world stream looks like this, and a detector that fires on them is broken in an obvious way. |
+
+"Hard" and "easy" mean *confusable with a banana*, *not* hard or easy to classify — the easy
+group actually scores lower, because umbrellas and laptops are genuinely difficult ImageNet
+classes while produce is visually distinctive.
+
+`corn` is deliberately absent. ImageNet splits corn across `corn` and `ear, spike, capitulum`,
+the model sends real corn images to the latter, and carrying both would have scored a taxonomy
+quirk as vision error — it measured 0/9 with 6 of the 9 going to the neighbouring class.
 
 Images repeat across the matrix. That is fine for a controlled *energy* benchmark — the same
 stimulus under different power policies is the point — and it gets noted in the writeup rather
 than hidden.
+
+## The measured ceiling, 2026-09-06
+
+From `tools/reference_predict.py --images images -o data/reference.csv --swap-check`, on
+`mobilenet_v2_1.0_224_quant.tflite`, no camera in the loop:
+
+```
+top-1                     177/275 = 64.4%     <- the ceiling
+  target (banana)          32/50  = 64.0%
+  hard negatives           85/117 = 72.6%
+  easy negatives           60/108 = 55.6%
+banana recall              32/50  = 0.64
+banana false positives      1/225              <- a fig, at 0.52 confidence
+channel-swap agreement     44.0%               <- low is healthy
+```
+
+**Anything below 64.4% on the Pi is capture degradation, not model error.** The single false
+positive being a fig rather than a golden retriever is the distractor set working as intended.
+Re-measure and update this block whenever the stimulus set changes.
 
 ## Before trusting any accuracy number
 
