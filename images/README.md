@@ -18,12 +18,44 @@ images/whatever_filenames_you_like.JPEG
 
 ```csv
 filename,true_class,true_class_id
-ILSVRC2012_val_00012345.JPEG,banana,954
-ILSVRC2012_val_00067890.JPEG,coffee_mug,504
+ILSVRC2012_val_00012345.JPEG,banana,955
+ILSVRC2012_val_00067890.JPEG,coffee_mug,505
 ```
 
 **Use this one.** It is the only layout that carries real ImageNet class *indices*, and the index
-is what `reference_predict.py` scores predictions against. Class 954 is `banana`.
+is what `reference_predict.py` scores predictions against.
+
+### The index is 955, not 954 — read this before authoring the manifest
+
+**There are two ImageNet index conventions and they differ by one.** Almost every reference you
+will find online — torchvision, the usual class-list gists, most papers — uses the **1000-class**
+space where `banana` is **954** and `coffee mug` is **504**.
+
+This model does not use that space. `mobilenet_v2_1.0_224_quant.tflite` has **1001 outputs**:
+ImageNet's 1000 classes plus a `background` class at index 0. Everything is therefore shifted up
+by one, and `true_class_id` in the manifest must be in **the model's space**:
+
+| Class | 1000-class space (what you'll find online) | **This model — use this** |
+|---|---|---|
+| `banana` | 954 | **955** |
+| `coffee mug` | 504 | **505** |
+
+Getting this wrong is silent and expensive. `reference_predict.py` scores with raw integer
+equality (`pred_id == true_class_id`), so an off-by-one manifest marks **every single image
+wrong** and reports a top-1 near 0%. It looks exactly like a catastrophic capture-path failure —
+glare, moiré, defocus — which is the one thing this whole reference step exists to rule out.
+`--swap-check` does not catch it either, because the swapped run is off by one too.
+
+**Never type an index by hand.** Ask the model what it calls the class:
+
+```bash
+.venv/bin/python pi/classify.py --target-class banana --resolve-only
+# target 'banana' -> class_id 955 (banana)
+```
+
+`reference_predict.py` also cross-checks every manifest row's `true_class_id` against the name in
+the same row and refuses to run on a mismatch, so a bad manifest fails loudly at startup instead
+of quietly producing a wrong accuracy ceiling.
 
 ### Fallback: one directory per class
 
@@ -42,7 +74,7 @@ Recognised extensions: `.jpg .jpeg .png .bmp .gif`, case-insensitive, so `.JPEG`
 
 ## Balance
 
-A few hundred images across ~20 classes, roughly 20% target class (`banana`, id 954). Enough
+A few hundred images across ~20 classes, roughly 20% target class (`banana`, id 955). Enough
 positives that detection rate has resolution at 40 events per matrix cell; few enough that a
 detector which always answers "banana" still scores badly.
 

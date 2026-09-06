@@ -17,10 +17,15 @@ data/sample/summary.json
 images/*
 !images/README.md
 
-# Models: fetched by pi/models/fetch_models.sh
+# Models: fetched by pi/models/fetch_models.sh. Large, and not ours to redistribute.
+# The tarballs unpack far more than the two .tflite files -- checkpoints, frozen
+# graphs, eval pbtxt, ~138 MB in total -- so ignore the directory wholesale and
+# re-admit only what we actually wrote. Listing artefacts one by one meant the
+# rest sat untracked, one `git add -A` away from a 138 MB public commit.
+pi/models/*
+!pi/models/fetch_models.sh
 *.tflite
 *.tgz
-pi/models/labels.txt
 
 # Python
 __pycache__/

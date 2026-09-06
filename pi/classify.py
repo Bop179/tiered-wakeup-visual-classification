@@ -218,6 +218,10 @@ def main() -> int:
                     help="time N inferences on one frame and exit")
     ap.add_argument("--target-class", default="banana",
                     help="resolve this label to an index and print it")
+    ap.add_argument("--resolve-only", action="store_true",
+                    help="print the target's class id and exit. No camera and no "
+                         "inference, so it runs on the Mac -- this is how you look "
+                         "up an index while authoring images/manifest.csv")
     ap.add_argument("--swap-rgb", dest="swap_rgb", action="store_true", default=True)
     ap.add_argument("--no-swap-rgb", dest="swap_rgb", action="store_false")
     args = ap.parse_args()
@@ -231,6 +235,9 @@ def main() -> int:
         print(f"target {args.target_class!r} -> class_id {tid} ({clf.label(tid)})")
     except KeyError as e:
         print(f"target {e}")
+
+    if args.resolve_only:
+        return 0
 
     if args.image:
         frame, cap_ms = load_image_file(args.image, clf.width), 0.0

@@ -65,6 +65,44 @@ def main() -> int:
     except KeyError as e:
         sys.exit(f"target class not in labels.txt: {e}")
 
+    # Guard the off-by-one that silently destroys every accuracy number in the
+    # project. ImageNet indices are quoted in a 1000-class space nearly everywhere
+    # online (banana = 954), but this model emits 1001 with "background" at index
+    # 0, so every real class sits one higher (banana = 955). Scoring below is raw
+    # integer equality, so a manifest written in the wrong space marks *every*
+    # image wrong and reports a top-1 near zero -- indistinguishable from a
+    # catastrophic capture-path failure, which is the exact thing this reference
+    # run exists to rule out. --swap-check does not catch it either: the swapped
+    # run is off by one too. So check the indices against the names up front.
+    mismatched = []
+    for item in stimulus:
+        truth = item["true_class_id"]
+        if truth < 0:
+            continue                      # unindexed manifest; scored by label text
+        try:
+            by_name = clf.class_id_for(item["true_class"].replace("_", " "))
+        except KeyError:
+            continue                      # a human label with no exact counterpart
+        if by_name != truth:
+            mismatched.append((item["true_class"], truth, by_name))
+
+    if mismatched:
+        print(f"\n{len(mismatched)} manifest rows have a true_class_id that "
+              f"disagrees with their true_class name. Every one would score as "
+              f"wrong, so this run is refusing to start.", file=sys.stderr)
+        for name, truth, by_name in mismatched[:5]:
+            print(f"  {name!r}: manifest says {truth}, this model says "
+                  f"{by_name} ({clf.label(by_name)})", file=sys.stderr)
+        if len(mismatched) > 5:
+            print(f"  ... and {len(mismatched) - 5} more", file=sys.stderr)
+        if all(by_name - truth == 1 for _, truth, by_name in mismatched):
+            sys.exit("\nEvery mismatch is off by exactly one, so the manifest is "
+                     "in the 1000-class ImageNet space. This model has 1001 "
+                     "outputs with 'background' at index 0. Add 1 to every "
+                     "true_class_id. See images/README.md.")
+        sys.exit("\nFix images/manifest.csv, or set true_class_id to -1 "
+                 "to score by label text instead.")
+
     args.out.parent.mkdir(parents=True, exist_ok=True)
     n_correct = n_labelled = 0
     swapped_correct = 0
