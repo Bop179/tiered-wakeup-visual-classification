@@ -144,8 +144,8 @@ def main() -> int:
         for i, e in enumerate(evt_rows):
             w.writerow([f"{e['t_pi']:.3f}", i, i * 1000, 800, 200, e["state"],
                         "12.0", f"{args.infer_s * 1000:.1f}",
-                        f"{args.infer_s * 1000 + 20:.1f}", 954, "banana", "0.812",
-                        "954:0.812", int(i % 7 == 0)])
+                        f"{args.infer_s * 1000 + 20:.1f}", 955, "banana", "0.812",
+                        "955:0.812", int(i % 7 == 0)])
 
     (out / "daemon.log").write_text(
         f"# clapperboard {t_clap:.3f} {CLAP:g}s\n# ready {t_clap + CLAP:.3f}\n")

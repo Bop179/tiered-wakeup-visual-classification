@@ -277,7 +277,7 @@ class Daemon:
                 cid, conf, top, infer_ms = self.clf.infer(frame)
             else:
                 time.sleep(self.args.fake_latency / 1000.0)
-                cid, conf = 954, 0.87
+                cid, conf = 955, 0.87   # 'banana' in this model's 1001-class space
         except Exception as e:
             # Never stay silent: counts must stay aligned or the detection rate
             # is unrecoverable from the logs.
