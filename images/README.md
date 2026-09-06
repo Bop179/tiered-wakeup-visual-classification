@@ -92,16 +92,16 @@ rather than only where they are consumed.
 
 ## Balance
 
-275 images across 25 classes, 50 of them `banana` (18.2%). Enough positives that detection rate
+275 images across 26 classes, 50 of them `banana` (18.2%). Enough positives that detection rate
 has resolution at 40 events per matrix cell; few enough that a detector which always answers
 "banana" scores 18%.
 
-The 24 non-target classes are chosen, not sampled, and split into two groups:
+The 25 non-target classes are chosen, not sampled, and split into two groups:
 
 | Group | Classes | Why |
 |---|---|---|
 | **hard** (13) | lemon, orange, pineapple, Granny Smith, fig, spaghetti/butternut squash, zucchini, cucumber, bell pepper, ear of corn, hotdog, French loaf | Yellow, elongated or produce-shaped — the things a banana detector actually trips on. These are what give the false-positive rate any meaning. |
-| **easy** (11) | golden retriever, sports car, coffee mug, laptop, acoustic guitar, park bench, traffic light, umbrella, teapot, backpack, analog clock, barn | No relationship to bananas at all. Most of a real-world stream looks like this, and a detector that fires on them is broken in an obvious way. |
+| **easy** (12) | golden retriever, sports car, coffee mug, laptop, acoustic guitar, park bench, traffic light, umbrella, teapot, backpack, analog clock, barn | No relationship to bananas at all. Most of a real-world stream looks like this, and a detector that fires on them is broken in an obvious way. |
 
 "Hard" and "easy" mean *confusable with a banana*, *not* hard or easy to classify — the easy
 group actually scores lower, because umbrellas and laptops are genuinely difficult ImageNet
