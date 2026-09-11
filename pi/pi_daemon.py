@@ -42,6 +42,14 @@ Wake from halt, also once:
 
 POWER_OFF_ON_HALT=1 saves more power but disables GPIO3 wake entirely, which is
 why the halted floor is ~0.5 W. That is an architectural constraint; report it.
+
+Restarts after a wake
+---------------------
+A halt ends this process, and nothing but systemd brings it back when the Arduino
+wakes the Pi. pi/tier3-daemon.service (install with pi/install_service.sh) runs
+pi/run_current.sh at every boot while a run is live. The wrapper passes
+--clapperboard 0 on restarts, --boots-out, and --exit-dormancy -1, and the daemon
+resumes event_idx from the rows already in events.csv.
 """
 
 from __future__ import annotations
@@ -62,6 +70,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 EVENTS_HEADER = ["t_pi", "event_idx", "arduino_t_ms", "peak", "evt_duration_ms",
                  "state_at_evt", "capture_ms", "infer_ms", "latency_ms",
                  "class_id", "class_name", "confidence", "top5", "fired"]
+BOOTS_HEADER = ["t_pi", "boot_id", "uptime_s", "first_event_idx", "pid"]
 MAX_LINE = 64
 BOOT_WINDOW_S = 120.0    # uptime under this at startup means we just booted
 
@@ -85,6 +94,42 @@ def uptime_s() -> float:
         return float("inf")     # not a Pi; assume we did not just boot
 
 
+def boot_id() -> str:
+    try:
+        with open("/proc/sys/kernel/random/boot_id") as fh:
+            return fh.read().strip()
+    except OSError:
+        return "unknown"
+
+
+def count_rows(path: str) -> int:
+    """Data rows already in a CSV that has a header row; 0 if there is no file."""
+    try:
+        with open(path, newline="") as fh:
+            return max(0, sum(1 for _ in csv.reader(fh)) - 1)
+    except OSError:
+        return 0
+
+
+def append_boot_row(path: str, first_event_idx: int) -> None:
+    """One row per daemon start: which boot it was, and where its events begin.
+
+    Under pi/tier3-daemon.service the daemon restarts after every wake from halt
+    and appends to the same events.csv. This log is how tools/run_experiment.py
+    tells those starts apart -- in particular the one a post-run wake flash
+    causes, whose single event does not belong to the run.
+    """
+    p = Path(path)
+    new = not p.exists() or p.stat().st_size == 0
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "a", newline="") as fh:
+        w = csv.writer(fh)
+        if new:
+            w.writerow(BOOTS_HEADER)
+        w.writerow([f"{time.time():.3f}", boot_id(), f"{uptime_s():.1f}",
+                    first_event_idx, os.getpid()])
+
+
 def _spin(until: float) -> None:
     x = 0
     while time.time() < until:
@@ -95,6 +140,10 @@ def _spin(until: float) -> None:
 def clapperboard(seconds: float = 2.0) -> float:
     """Burn every core for `seconds`. Returns the start timestamp, in Pi time."""
     t0 = time.time()
+    if seconds <= 0:
+        # A restart after a wake from halt. Spawning a process per core only to
+        # exit again would still add CPU time to the boot being measured.
+        return t0
     until = t0 + seconds
     procs = [multiprocessing.Process(target=_spin, args=(until,))
              for _ in range(max(1, os.cpu_count() or 1))]
@@ -225,8 +274,13 @@ def sync_offset(link: Link, n: int = 5, timeout: float = 1.0) -> float | None:
 class Daemon:
     def __init__(self, args):
         self.args = args
-        self.event_idx = 0
+        # Resume the run's numbering. After a wake from halt the unit restarts the
+        # daemon onto the same events.csv; counting from 0 again would give the
+        # run duplicate event_idx values.
+        self.event_idx = count_rows(args.out)
+        self.first_event_idx = self.event_idx
         self.fired_count = 0
+        self.halting = False
         self.just_booted = uptime_s() < BOOT_WINDOW_S
 
         self.clf = None
@@ -249,6 +303,9 @@ class Daemon:
         if self.sink.tell() == 0:
             self.writer.writerow(EVENTS_HEADER)
             self.sink.flush()
+        # getattr: tools/mock_arduino.py --self-test builds a minimal args object.
+        if getattr(args, "boots_out", None):
+            append_boot_row(args.boots_out, self.first_event_idx)
 
     # ------------------------------------------------------------- handlers
 
@@ -264,7 +321,8 @@ class Daemon:
             return
         link.send("ACK")                     # parsed, before capture, per the contract
 
-        state = "booted" if (self.just_booted and self.event_idx == 0) else "awake"
+        state = ("booted" if (self.just_booted and self.event_idx == self.first_event_idx)
+                 else "awake")
         cap_ms = infer_ms = 0.0
         cid, conf, top = -1, 0.0, []
         try:
@@ -303,6 +361,7 @@ class Daemon:
         self.event_idx += 1
 
     def handle_halt(self, link: Link) -> bool:
+        self.halting = True          # --exit-dormancy must never undo a HALT
         link.send("ACK")
         link.send("# halting")
         time.sleep(0.2)                       # let the bytes leave the UART
@@ -381,8 +440,20 @@ class Daemon:
             else:
                 link.send(f"# ERR {line[:20]}")
 
+        # Leaving because we were told to stop, not because Tier 2 halted us: make
+        # Tier 2 stop halting the Pi, so it is still up for the next run. After a
+        # HALT this must not happen -- it would change a dormancy cell mid-run.
+        if getattr(self.args, "exit_dormancy", None) is not None and not self.halting:
+            try:
+                got = set_param(link, "DORMANCY", self.args.exit_dormancy)
+            except OSError:
+                got = None
+            print(f"# exit-dormancy DORMANCY={got}" if got is not None
+                  else "# WARN exit-dormancy not acknowledged", flush=True)
+
         self.close()
-        print(f"# stopped after {self.event_idx} events, {self.fired_count} fired",
+        print(f"# stopped after {self.event_idx - self.first_event_idx} events this "
+              f"start ({self.event_idx} in the run), {self.fired_count} fired",
               flush=True)
         return 0
 
@@ -411,6 +482,13 @@ def main() -> int:
     ap.add_argument("--sync-n", type=int, default=5)
     ap.add_argument("--max-runtime", type=float,
                     help="exit after this many seconds (safety net for sweeps)")
+    ap.add_argument("--boots-out",
+                    help="append a row per daemon start (boot_id, first_event_idx) "
+                         "to this CSV; pi/run_current.sh passes data/<run>/boots.csv")
+    ap.add_argument("--exit-dormancy", type=int,
+                    help="on SIGTERM/SIGINT, SET DORMANCY to this before exiting -- "
+                         "never after a HALT. pi/run_current.sh passes -1 so the Pi "
+                         "stays up between runs")
     ap.add_argument("--no-camera", action="store_true",
                     help="no picamera2 -- for running against a mock Arduino")
     ap.add_argument("--fake-infer", action="store_true",

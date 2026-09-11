@@ -148,6 +148,29 @@ def log_row(writer, sink, t: float, idx: int, item: dict, target: str) -> None:
 
 # -------------------------------------------------------------------- render
 
+DEFAULT_PATCH_CORNER = "tr"
+DEFAULT_PATCH_FRAC = 0.18
+
+
+def patch_rect(w: int, h: int, corner: str = DEFAULT_PATCH_CORNER,
+               frac: float = DEFAULT_PATCH_FRAC) -> tuple[int, int, int, int]:
+    """The trigger patch: a square in a corner, sized as a fraction of the short edge.
+
+    tools/trigger_patch.py draws with this too, so Tier 1's ROC is measured on
+    exactly the patch the matrix flashes.
+    """
+    side = int(min(w, h) * frac)
+    x, y = {"tl": (0, 0), "tr": (w - side, 0),
+            "bl": (0, h - side), "br": (w - side, h - side)}[corner]
+    return (x, y, side, side)
+
+
+def patch_level(contrast: float) -> tuple[int, int, int]:
+    """Patch colour for a contrast in 0..1, on the black ground."""
+    v = int(round(255 * contrast))
+    return (v, v, v)
+
+
 def run_display(args, schedule: list[dict], writer, sink) -> None:
     try:
         import pygame
@@ -162,12 +185,8 @@ def run_display(args, schedule: list[dict], writer, sink) -> None:
     w, h = screen.get_size()
     print(f"# display {args.display}: {w}x{h}", file=sys.stderr)
 
-    # Trigger patch: a square in a corner, sized as a fraction of the short edge.
-    side = int(min(w, h) * args.patch_frac)
-    patch = {
-        "tl": (0, 0), "tr": (w - side, 0),
-        "bl": (0, h - side), "br": (w - side, h - side),
-    }[args.patch_corner] + (side, side)
+    patch = patch_rect(w, h, args.patch_corner, args.patch_frac)
+    side = patch[2]
 
     # Image region: centred, leaving the patch corner clear.
     margin = side + int(min(w, h) * 0.04)
@@ -215,12 +234,11 @@ def run_display(args, schedule: list[dict], writer, sink) -> None:
                 return
             time.sleep(0.005)
 
-        level = int(round(255 * item["contrast"]))
         screen.fill((0, 0, 0))
         if item["image"] is not None:
             surf = surface_for(item["image"])
             screen.blit(surf, surf.get_rect(center=box.center))
-        pygame.draw.rect(screen, (level, level, level), patch)
+        pygame.draw.rect(screen, patch_level(item["contrast"]), patch)
         pygame.display.flip()
         # vsync makes flip() return after the frame is presented, so this is the
         # closest this side gets to a photon timestamp.
@@ -277,8 +295,9 @@ def main() -> int:
     ap.add_argument("--target-class", default="banana")
     ap.add_argument("--images", default=str(REPO / "images"))
     ap.add_argument("--display", type=int, default=0)
-    ap.add_argument("--patch-corner", choices=["tl", "tr", "bl", "br"], default="tr")
-    ap.add_argument("--patch-frac", type=float, default=0.18,
+    ap.add_argument("--patch-corner", choices=["tl", "tr", "bl", "br"],
+                    default=DEFAULT_PATCH_CORNER)
+    ap.add_argument("--patch-frac", type=float, default=DEFAULT_PATCH_FRAC,
                     help="patch side as a fraction of the screen's short edge")
     ap.add_argument("--lead-in", type=float, default=3.0,
                     help="black seconds before the first and after the last event")

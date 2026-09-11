@@ -6,4 +6,5 @@
 
 numpy>=1.24
 pyserial>=3.5
-ai-edge-litert>=1.0   # or: tflite-runtime  (Bookworm ships Python 3.11, both work)
+ai-edge-litert>=2.2   # 2.2.0 ships cp313 aarch64 wheels, which trixie's Python 3.13 needs.
+                      # tflite-runtime stops at Python 3.11 -- not an option on trixie.

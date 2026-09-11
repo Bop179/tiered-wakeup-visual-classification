@@ -268,6 +268,27 @@ sudo rpi-eeprom-config          # want: WAKE_ON_GPIO=1  and  POWER_OFF_ON_HALT=0
 `WAKE_ON_GPIO=1` and `POWER_OFF_ON_HALT=0`, which is why the halted floor is ~0.5 W rather than
 near zero. Report that honestly — it is an architectural constraint, not a measurement error.
 
+### Restarting the daemon after a wake, and ending a run
+
+A halt ends `pi_daemon.py`, and nothing but systemd brings it back. `pi/install_service.sh`
+installs **`tier3-daemon.service`**, which runs `pi/run_current.sh` at every boot — but only while
+`data/current_run.env` exists. `tools/run_experiment.py` writes that file at the start of a run and
+deletes it at the end, so an ordinary reboot starts nothing.
+
+- On a restart the daemon **resumes `event_idx`** from the rows already in `events.csv`, skips the
+  clapperboard (`--clapperboard 0`: the burn runs before `# ready`, so repeating it would add to
+  every measured boot), and appends a row to `boots.csv` (§5).
+- The unit does **not** wait for the network. `T_boot` is wake → `# ready`, and waiting for WiFi
+  would inflate it.
+- **Ending a run.** `systemctl stop` makes the daemon send `SET,DORMANCY,-1` before it exits
+  (`--exit-dormancy -1`), so Tier 2 stops halting the Pi between runs. It never does this after a
+  `HALT` — that would change a dormancy cell mid-run.
+- **A run that ends with the Pi halted.** `run_experiment.py` waits ≥ 45 s (past
+  `HALT_SETTLE_MS`), flashes the trigger patch at full contrast so Tier 2 wakes the Pi, lets the
+  restarted daemon drain the event Tier 2 was holding — otherwise it would reach the next run as a
+  phantom first result — and then stops the unit. Events from that post-run boot are moved from
+  `events.csv` to `events_post_run.csv`.
+
 ---
 
 ## 4. Clock reconciliation
@@ -316,8 +337,12 @@ by more than 100 ms, the clapperboard wins and the disagreement gets noted in th
 **The Nth `GEN` maps to the Nth `RES`.** Robust to every clock problem above. Timestamps are used
 only for *energy segmentation* — deciding which slice of the power trace belongs to which event.
 
-If `RES` count ≠ `GEN` count, the difference is the miss count, and the mapping is recovered by
-walking both logs forward with the Pi's `state_at_evt` column marking where the misses happened.
+If `RES` count ≠ `GEN` count, the difference is the miss count. Walking both logs forward by index
+misattributes every result after the first miss, and one boot can swallow an event and forward the
+next, so `analysis/accuracy.py` pairs each result with the stimulus onset that explains its
+**`arduino_t_ms`**. Tier 2's clock keeps counting while the Pi is halted; the Pi's own clock has no
+RTC and comes back wrong after every wake until NTP resyncs. It falls back to `t_pi`, then to index
+order, and reports which it used.
 
 ---
 
@@ -364,6 +389,17 @@ t_pi,event_idx,arduino_t_ms,peak,evt_duration_ms,state_at_evt,capture_ms,infer_m
 - `capture_ms` / `infer_ms` — the split of `latency_ms`
 - `top5` — `id:conf;id:conf;...`, five entries, for post-hoc analysis without a re-run
 - `fired` — `1` if the daemon declared the target class
+
+### `boots.csv` — Pi, written by `pi_daemon.py --boots-out`
+
+```
+t_pi,boot_id,uptime_s,first_event_idx,pid
+```
+
+One row per daemon start within a run: the first start, then one per wake from halt. `boot_id` is
+`/proc/sys/kernel/random/boot_id`; `first_event_idx` is where that start's rows begin in
+`events.csv`. `run_experiment.py` uses it to split off `events_post_run.csv` — the events from a
+wake it caused *after* the stimulus ended, which are not part of the run.
 
 ### `manifest.json` — Mac, written by `run_experiment.py`
 

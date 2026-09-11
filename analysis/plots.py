@@ -77,9 +77,16 @@ def load_runs(root: Path) -> list[dict]:
     out = []
     for s in sorted(root.rglob("summary.json")):
         try:
-            out.append(json.loads(s.read_text()))
+            run = json.loads(s.read_text())
         except (OSError, json.JSONDecodeError):
             continue
+        acc = s.parent / "accuracy.json"          # analysis/accuracy.py, once it has run
+        if acc.exists():
+            try:
+                run["accuracy_report"] = json.loads(acc.read_text())
+            except (OSError, json.JSONDecodeError):
+                pass
+        out.append(run)
     return [r for r in out if r.get("avg_power_W") is not None]
 
 
@@ -245,7 +252,7 @@ def fig_duration(runs, C, args, plt):
 
 
 def fig_quantization(runs, C, args, plt):
-    """INT8 vs FP32. Three panels, because three measures, and never two y-axes."""
+    """INT8 vs FP32. One panel per measure, and never two y-axes."""
     groups = group_by(runs, "model")
     if len(groups) < 2:
         return None
@@ -260,7 +267,16 @@ def fig_quantization(runs, C, args, plt):
         ("average power", "W",
          lambda rs: _mean(rs, lambda r: r.get("avg_power_W"))),
     ]
-    fig, axes = plt.subplots(1, len(panels), figsize=(10.5, 3.9))
+
+    def top1(r):
+        a = (r.get("accuracy_report") or {}).get("accuracy") or {}
+        return None if a.get("camera_top1") is None else 100.0 * a["camera_top1"]
+
+    # Accuracy is a third of what the quantization comparison is for, but it only
+    # exists once analysis/accuracy.py has been run over these directories.
+    if any(top1(r) is not None for m in order for r in groups[m]):
+        panels.append(("top-1 through the camera", "%", lambda rs: _mean(rs, top1)))
+    fig, axes = plt.subplots(1, len(panels), figsize=(3.5 * len(panels), 3.9))
     for ax, (title, unit, fn) in zip(axes, panels):
         vals = [fn(groups[m]) for m in order]
         bars = ax.bar([m.upper() for m in order], vals, color=colours[:len(order)],
