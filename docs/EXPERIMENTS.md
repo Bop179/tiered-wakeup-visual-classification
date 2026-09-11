@@ -108,7 +108,9 @@ workshop — quantization as an energy lever — and it costs almost nothing.
 | mean interval | 15 s |
 
 Report latency, **energy per inference net of idle**, and accuracy against
-`tools/reference_predict.py`. Expect the race-to-idle result: INT8 may draw *more* instantaneous
+`tools/reference_predict.py`. `analysis/accuracy.py data/<run_id>/` does the scoring: camera
+top-1 against that ceiling on the same images, and it adds a top-1 panel to the quantization
+figure. Expect the race-to-idle result: INT8 may draw *more* instantaneous
 power while using less energy per inference. Power alone cannot distinguish efficient from stalled.
 
 ### 4 — Secondary: Tier 1 ROC

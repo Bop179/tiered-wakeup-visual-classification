@@ -37,6 +37,9 @@ everything else — if there is no clear step here, swap the sensor the same day
 
 Monitor showing **static black**, room lighting normal, nobody moving. Count comparator firings.
 
+`tools/trigger_patch.py quiet --quiet-s 300 --serial /dev/cu.usbmodem*` shows the black screen and
+counts the Uno's `EVT` lines for you. With no Uno on USB, press SPACE each time the LED lights.
+
 | Trimmer position | Duration | Firings | Rate (/min) |
 |---|---|---|---|
 | | 5 min | | |
@@ -48,6 +51,12 @@ Lowering sensitivity to fix a noise problem costs real detections too.
 
 **≥ 6 trimmer positions.** For each, sweep patch contrast and record detections and false triggers.
 This is the ROC.
+
+Run `tools/trigger_patch.py sweep --trimmer <position> --serial /dev/cu.usbmodem*` once per
+position. It shows a 5-minute quiet window, then 20 flashes at each of 8 contrasts on exactly the
+patch the matrix uses, matches the Uno's `EVT` lines to the flashes, and appends the rows to
+`data/tier1_roc.csv` in the columns `analysis/plots.py` reads. About 20 minutes per position. With
+no Uno on USB, press SPACE each time the comparator LED lights instead.
 
 | Trimmer (turns from CCW end) | V_threshold | Contrast | Events shown | Detected | False triggers / min |
 |---|---|---|---|---|---|

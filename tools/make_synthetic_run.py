@@ -142,7 +142,11 @@ def main() -> int:
                     "state_at_evt", "capture_ms", "infer_ms", "latency_ms",
                     "class_id", "class_name", "confidence", "top5", "fired"])
         for i, e in enumerate(evt_rows):
-            w.writerow([f"{e['t_pi']:.3f}", i, i * 1000, 800, 200, e["state"],
+            # arduino_t_ms is Tier 2's millis(): continuous across Pi halts, and
+            # drifting like a Uno's ceramic resonator (0.2 %), so accuracy.py's
+            # Arduino-time pairing is exercised on synthetic runs too.
+            w.writerow([f"{e['t_pi']:.3f}", i, int((e["t_pi"] - t_start) * 1002.0) + 777000,
+                        800, 200, e["state"],
                         "12.0", f"{args.infer_s * 1000:.1f}",
                         f"{args.infer_s * 1000 + 20:.1f}", 955, "banana", "0.812",
                         "955:0.812", int(i % 7 == 0)])

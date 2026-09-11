@@ -130,9 +130,10 @@ docs/     INTERFACE.md (frozen Tier2↔Tier3 contract) · TEAMMATE_BRIEF.md (Tie
           EXPERIMENTS.md (matrix + run log) · trigger_characterization.md
 firmware/ tier2_firmware/          Arduino Uno — Juan
 pi/       pi_daemon.py · classify.py · models/
-tools/    event_display.py · reference_predict.py · fnb58_logger.py
-          mock_arduino.py · mock_pi.py · run_experiment.py · latency_bench.py
-analysis/ power_model.py · energy_analysis.py · plots.py
+          run_current.sh · tier3-daemon.service · install_service.sh
+tools/    event_display.py · trigger_patch.py · reference_predict.py · fetch_stimulus.py
+          fnb58_logger.py · mock_arduino.py · mock_pi.py · run_experiment.py · latency_bench.py
+analysis/ power_model.py · energy_analysis.py · accuracy.py · plots.py
 ```
 
 **Start with [`docs/INTERFACE.md`](docs/INTERFACE.md).** It is the frozen contract both halves are
@@ -149,6 +150,7 @@ tools/setup_mac.sh                  # builds .venv from tools/requirements.txt
 pi/models/fetch_models.sh           # MobileNetV2 INT8 + FP32 + labels
 python3 -m venv --system-site-packages .venv   # picamera2 is a system package
 .venv/bin/pip install -r pi/requirements.txt
+bash pi/install_service.sh          # restarts the daemon after every wake from halt
 ```
 
 ## Reproducing a run
@@ -160,7 +162,12 @@ tools/run_experiment.py --mean-interval 30 --duration-ms 5000 \
 
 # analysis
 analysis/energy_analysis.py data/<run_id>/
+analysis/accuracy.py data/<run_id>/   # detection, accuracy lost vs the ceiling, inferences avoided
 analysis/plots.py data/            # Pareto family, ROC, energy breakdown
+
+# Tier 1 on its own: flashes for the scope, then one ROC sweep per trimmer position
+tools/trigger_patch.py flash
+tools/trigger_patch.py sweep --trimmer 2.5 --serial /dev/cu.usbmodem1101
 ```
 
 ## Honest reporting

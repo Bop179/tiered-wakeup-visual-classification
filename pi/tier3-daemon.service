@@ -1,0 +1,23 @@
+# Template. pi/install_service.sh fills in @USER@ and @REPO@ and installs it as
+# /etc/systemd/system/tier3-daemon.service.
+[Unit]
+Description=Tier 3 daemon for the live tiered wake-up run
+# Only while a run is live. tools/run_experiment.py writes this file at the start
+# of a run and deletes it at the end, so an ordinary reboot starts nothing.
+ConditionPathExists=@REPO@/data/current_run.env
+# Deliberately NOT After=network-online.target: waiting for WiFi would add seconds
+# to every boot the experiment measures. The daemon needs only the UART.
+
+[Service]
+Type=exec
+User=@USER@
+WorkingDirectory=@REPO@
+ExecStart=@REPO@/pi/run_current.sh
+# A crash mid-run has to show up in the data as misses, not be papered over.
+Restart=no
+# On SIGTERM the daemon SETs DORMANCY -1 and waits up to 2 s for the CFG reply.
+KillMode=mixed
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target
