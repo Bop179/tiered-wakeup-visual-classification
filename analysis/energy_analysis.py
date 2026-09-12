@@ -102,6 +102,29 @@ def integrate(t: list[float], w: list[float], t0: float, t1: float) -> tuple[flo
 
 # ------------------------------------------------------------- state finding
 
+def smooth(w: list[float], window_s: float = 1.0, rate: float = 100.0
+           ) -> list[float]:
+    """Boxcar mean over window_s. For STATE DETECTION only, never integration.
+
+    A state is a second-scale plateau, but the per-sample noise on this meter is
+    a few hundred mW -- wider than the +-0.25 W band find_levels classifies with.
+    Measured idle never stayed inside that band for a whole second, so the idle
+    plateau was invisible and P_idle came back n/a on a trace that plainly has
+    one. Averaging first collapses the noise by sqrt(k) and leaves the plateaus
+    where they are. Energy is always integrated from the raw samples.
+    """
+    k = max(1, int(round(window_s * rate)))
+    if k <= 1 or len(w) < k:
+        return list(w)
+    out, run = [], sum(w[:k])
+    half = k // 2
+    for i in range(len(w)):
+        if i > half and i + k - half <= len(w):
+            run += w[i + k - half - 1] - w[i - half - 1]
+        out.append(run / k)
+    return out
+
+
 def find_levels(t: list[float], w: list[float], bin_w: float = 0.05,
                 min_occupancy: float = 0.01, min_dwell_s: float = 1.0,
                 tol_w: float = 0.25, merge_w: float = 0.3) -> list[dict]:
@@ -132,23 +155,30 @@ def find_levels(t: list[float], w: list[float], bin_w: float = 0.05,
 
     levels = []
     for centre in peaks:
-        runs, count, i = [], 0, 0
+        runs, i = [], 0
         while i < n:
             if abs(w[i] - centre) <= tol_w:
                 j = i
                 while j < n and abs(w[j] - centre) <= tol_w:
                     j += 1
-                count += j - i
-                runs.append(t[min(j, n - 1)] - t[i])
+                runs.append((t[min(j, n - 1)] - t[i], i, j))
                 i = j
             else:
                 i += 1
-        if not runs:
+        # Transit slivers are not visits. Every ramp between two states clips the
+        # edge of this band for a few milliseconds, and a noisy ramp clips it
+        # several times. Left in the list they outvote the real thing: the halted
+        # state measured here had one 98.1 s run and twelve sub-50 ms slivers, so
+        # the median dwell came out at 0.02 s and a 98-second plateau was rejected.
+        # Drop them first, then judge -- and measure occupancy and mean watts over
+        # the dwells alone, so ramp samples do not drag the level off its value.
+        sustained = [r for r in runs if r[0] >= min_dwell_s]
+        if not sustained:
             continue
-        occupancy = count / n
-        dwell = statistics.median(runs)
-        if occupancy >= min_occupancy and dwell >= min_dwell_s:
-            samples = [v for v in w if abs(v - centre) <= tol_w]
+        occupancy = sum(j - i for _, i, j in sustained) / n
+        dwell = statistics.median([d for d, _, _ in sustained])
+        if occupancy >= min_occupancy:
+            samples = [w[k] for _, i, j in sustained for k in range(i, j)]
             levels.append({"watts": statistics.fmean(samples),
                            "occupancy": occupancy, "dwell_s": dwell})
     return sorted(levels, key=lambda d: d["watts"])
@@ -191,6 +221,97 @@ def find_boot_windows(t: list[float], w: list[float], levels: list[float],
         i = max(k, j + 1)
 
     return windows, (statistics.mode(entered) if entered else None)
+
+
+def read_ready_uptimes(run_dir: Path, max_boot_s: float = 120.0) -> list[float]:
+    """The uptime= values on the daemon's "# ready" lines, fresh boots only.
+
+    The Pi 4 has no RTC and tier3-daemon.service deliberately starts before the
+    network, so the daemon's WALL CLOCK at "# ready" is only whatever timesyncd
+    restored from disk -- in the measured trace it read about 100 s BEFORE the
+    wake that caused it. Its monotonic uptime is sound; its wall clock is not.
+    Anything above max_boot_s is a daemon started by hand on an already-running
+    Pi, not a wake, so it is not a boot.
+    """
+    log = run_dir / "daemon.log"
+    if not log.exists():
+        return []
+    ups: list[float] = []
+    for line in log.read_text().splitlines():
+        if not line.startswith("# ready "):
+            continue
+        for tok in line.split():
+            if tok.startswith("uptime="):
+                try:
+                    u = float(tok[len("uptime="):])
+                except ValueError:
+                    break
+                if u <= max_boot_s:
+                    ups.append(u)
+                break
+    return ups
+
+
+def boot_cycle_windows(t: list[float], w: list[float], w_s: list[float],
+                       p_halt: float, p_idle: float, p_fw: float | None,
+                       uptimes: list[float], halt_tol: float = 0.25,
+                       min_halt_s: float = 20.0
+                       ) -> list[tuple[float, float, float]]:
+    """Boot windows for a dedicated halt->wake trace, bracketed by EDGES.
+
+    find_boot_windows treats a boot as the power STATE entered on leaving halt.
+    That holds in synthesis and fails on this hardware: the measured boot is a
+    ~2.7 W firmware stage for 9.4 s and then a noisy 3.4-5.1 W kernel and
+    userspace phase whose mean (3.45 W) sits 0.19 W from idle (3.26 W) -- far
+    inside the noise, so no level separates them and the level-based window
+    closes at the end of the firmware stage instead, reporting T_boot = 8.5 s
+    against a true 25.6 s.
+
+    So bracket it instead. The window opens where the trace leaves the halted
+    floor and closes at kernel_start + the daemon's uptime at "# ready", with
+    kernel_start the first sustained crossing above the midpoint between the
+    firmware plateau and idle. That midpoint is the one threshold in the boot
+    that IS well separated.
+
+    -> [(wake, ready, kernel_start)], one per halted run that has an uptime.
+    """
+    n = len(w_s)
+    if n == 0 or not uptimes:
+        return []
+    thresh = ((p_fw + p_idle) / 2 if p_fw is not None
+              else (p_halt + p_idle) / 2)
+
+    wakes: list[float] = []
+    i = 0
+    while i < n:
+        if abs(w_s[i] - p_halt) <= halt_tol:
+            j = i
+            while j < n and abs(w_s[j] - p_halt) <= halt_tol:
+                j += 1
+            if t[min(j, n - 1)] - t[i] >= min_halt_s and j < n:
+                wakes.append(t[j])
+            i = j
+        else:
+            i += 1
+
+    out: list[tuple[float, float, float]] = []
+    for idx, wake in enumerate(wakes):
+        if idx >= len(uptimes):
+            break
+        kstart = None
+        for k in range(n):
+            if t[k] <= wake or w[k] <= thresh:
+                continue
+            m = k
+            while m < n and t[m] - t[k] < 1.0:
+                m += 1
+            if m > k and statistics.fmean(w[k:m]) > thresh:
+                kstart = t[k]
+                break
+        if kstart is None:
+            continue
+        out.append((wake, kstart + uptimes[idx], kstart))
+    return out
 
 
 def find_clapperboard(t: list[float], w: list[float], duration: float = 2.0,
@@ -275,10 +396,15 @@ def analyse_run(run_dir: Path, args) -> dict:
     out["avg_power_W"] = e_trapz / duration if duration else float("nan")
 
     # ---------------------------------------------------------- the states
-    levels = find_levels(t, w, min_dwell_s=args.min_dwell_s)
+    # States are found on the smoothed trace, energy always on the raw one.
+    w_s = smooth(w, args.smooth_s, rate if 1 < rate < 1e6 else 100.0)
+    levels = find_levels(t, w_s, min_dwell_s=args.min_dwell_s)
     out["levels_W"] = [{k: round(v, 4) for k, v in lv.items()} for lv in levels]
     watts = [lv["watts"] for lv in levels]
 
+    # Windows come off the RAW trace: smoothing ramps the halt->boot edge through
+    # the idle level, so the level "entered on leaving halt" reads as idle for a
+    # few hundred ms and the window is lost.
     boots, boot_level = find_boot_windows(t, w, watts, args.min_boot_s)
     p_halt = watts[0] if len(watts) >= 2 else None
     p_boot_level = watts[boot_level] if boot_level is not None else None
@@ -363,14 +489,33 @@ def analyse_run(run_dir: Path, args) -> dict:
                 [p["energy_J"] - p_idle * p["span_s"] for p in per_event])
 
     # ------------------------------------------------------- boot energetics
+    out["boot_method"] = "level"
+    if getattr(args, "boot_cycle", False) and p_halt is not None \
+            and p_idle is not None:
+        edges = boot_cycle_windows(t, w, w_s, p_halt, p_idle, p_boot_level,
+                                   read_ready_uptimes(run_dir))
+        if edges:
+            boots = [(a, b) for a, b, _ in edges]
+            out["boot_method"] = "edge"
+            fw = [k - a for a, _, k in edges]
+            out["firmware_stage_s"] = {"mean": statistics.fmean(fw),
+                                       "min": min(fw), "max": max(fw)}
     out["n_boot_windows"] = len(boots)
-    e_boots, t_boots, p_boots = [], [], []
+    e_boots, t_boots, p_boots, net_boots = [], [], [], []
     for b0, b1 in boots:
         e, span = integrate(t, w, b0, b1)
         if span > 0:
             e_boots.append(e)
             t_boots.append(span)
             p_boots.append(e / span)
+            if p_halt is not None:
+                # Net of the halted floor: the floor would have been paid anyway
+                # over this interval, so this is the marginal cost of the boot and
+                # the numerator of the dormancy break-even.
+                net_boots.append(e - p_halt * span)
+    if net_boots:
+        out["E_boot_net_of_halt_J"] = {"mean": statistics.fmean(net_boots),
+                                       "min": min(net_boots), "max": max(net_boots)}
     if e_boots:
         out["E_boot_J"] = {"n": len(e_boots), "mean": statistics.fmean(e_boots),
                            "median": statistics.median(e_boots),
@@ -444,6 +589,17 @@ def report(out: dict) -> None:
 
     if "E_boot_J" in out:
         e, tb = out["E_boot_J"], out["T_boot_s"]
+        if out.get("boot_method") == "edge":
+            fw = out.get("firmware_stage_s") or {}
+            net = out.get("E_boot_net_of_halt_J") or {}
+            print(f"\n  BOOT  (edge-bracketed: halt exit -> kernel step + daemon "
+                  f"uptime at '# ready')")
+            if fw:
+                print(f"        firmware stage {fw['mean']:.2f} s before the kernel "
+                      f"starts counting uptime")
+            if net:
+                print(f"        E_boot net of halt {net['mean']:.1f} J "
+                      f"<- the marginal cost of a boot")
         print(f"\n  BOOT  n={e['n']}  E_boot {e['mean']:.1f} J"
               f" (median {e['median']:.1f}, {e['min']:.1f}-{e['max']:.1f})")
         print(f"        T_boot {tb['mean']:.1f} s "
@@ -530,6 +686,8 @@ def main() -> int:
     ap.add_argument("--clapperboard", type=float, default=2.0)
     ap.add_argument("--min-boot-s", type=float, default=8.0,
                     help="shortest excursion counted as a boot rather than a spike")
+    ap.add_argument("--smooth-s", type=float, default=1.0,
+                    help="boxcar width for state detection only; 0 disables")
     ap.add_argument("--min-dwell-s", type=float, default=1.0,
                     help="shortest dwell that counts as a power state, not a spike")
     ap.add_argument("--no-write", action="store_true", help="do not write summary.json")
