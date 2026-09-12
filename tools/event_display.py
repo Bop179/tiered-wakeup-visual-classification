@@ -180,7 +180,14 @@ def run_display(args, schedule: list[dict], writer, sink) -> None:
     pygame.init()
     pygame.mouse.set_visible(False)
     flags = pygame.FULLSCREEN | pygame.SCALED
-    screen = pygame.display.set_mode((0, 0), flags, display=args.display, vsync=1)
+    # SCALED needs a real size; (0, 0) is only accepted for plain FULLSCREEN.
+    # Asking for the desktop size keeps the scale 1:1, so the stimulus is never resampled.
+    desktops = pygame.display.get_desktop_sizes()
+    if not 0 <= args.display < len(desktops):
+        sys.exit(f"--display {args.display} out of range: "
+                 f"{len(desktops)} display(s) attached")
+    screen = pygame.display.set_mode(
+        desktops[args.display], flags, display=args.display, vsync=1)
     pygame.display.set_caption("tiered-wakeup stimulus")
     w, h = screen.get_size()
     print(f"# display {args.display}: {w}x{h}", file=sys.stderr)
