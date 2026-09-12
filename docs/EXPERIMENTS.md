@@ -14,22 +14,114 @@ recorded here.
 
 | # | Measurement | Command | Pass condition | Result |
 |---|---|---|---|---|
-| 0.1 | **Supply sanity** | `vcgencmd get_throttled` under sustained 100% CPU + camera streaming | **`throttled=0x0`.** Any nonzero under-voltage bit and every power number after it is garbage. | _pending_ |
-| 0.2 | **Board revision** | `grep Revision /proc/cpuinfo` | Note rev. `...111` = **rev 1.1**, which has the USB-C CC-resistor bug and refuses e-marked C-to-C cables. `...112` = rev 1.2, fine. The FNB58 sits in that chain. | _pending_ |
-| 0.3 | **Inference + end-to-end latency** | `tools/latency_bench.py --model int8 -n 200` | A number, whatever it is. If inference is far slower than assumed, the tier boundary moves — and it is better to learn that on day 1. | _pending_ |
-| 0.4 | **Boot cost `E_boot`** | `analysis/energy_analysis.py --boot-cycle data/boot/` | **The single most important number in the project.** The ~100 J estimate is the basis of the entire break-even argument. Measure it, do not assume it. | _pending_ |
+| 0.1 | **Supply sanity** | `vcgencmd get_throttled` under sustained 100% CPU + camera streaming | **`throttled=0x0`.** Any nonzero under-voltage bit and every power number after it is garbage. | **PASS (CPU + camera), Sep 11** — `0x0` held through 45 s of 4-core load (ARM pinned 1.8 GHz, 34→47 °C) and through the 200x2 camera+inference bench (34.5→40.4 °C). An earlier cable gave a sustained `0x50005` (under-voltage flapping every ~10 s at 32 °C); swapping it fixed it. **Meter-in-line half PASS, Sep 12** — FNB58 in series, `0x0` before and after the whole 43.5 min boot-cycle trace and before and after the 3000-inference bench (35→43.8 °C). |
+| 0.2 | **Board revision** | `grep Revision /proc/cpuinfo` | Note rev. `...111` = **rev 1.1**, which has the USB-C CC-resistor bug and refuses e-marked C-to-C cables. `...112` = rev 1.2, fine. The FNB58 sits in that chain. | **PASS**, Sep 11 — Rev 1.5, `a03115`. Not affected by the rev 1.1 cable bug. |
+| 0.3 | **Inference + end-to-end latency** | `tools/latency_bench.py --compare -n 200` (add `--model-only` if no camera) | A number, whatever it is. If inference is far slower than assumed, the tier boundary moves — and it is better to learn that on day 1. | **PASS, Sep 11** — see the table below. `data/latency.json` on the Pi. imx477, 224x224 RGB888 stream, 4 threads, `throttled=0x0` throughout. |
+| 0.4 | **Boot cost `E_boot`** | `analysis/energy_analysis.py --boot-cycle data/boot/` | **The single most important number in the project.** The ~100 J estimate is the basis of the entire break-even argument. Measure it, do not assume it. | **PASS, Sep 12** — `E_boot` **88.3 J** wall, **37.1 J** net of the halted floor, n=3, `T_boot` **25.6 s**. See 0.4 results below. |
+
+#### 0.3 results — Pi 4 Rev 1.5, trixie, ai-edge-litert 2.2.0, 4 threads, n=200
+
+| Model | inference p50 | inference p95 | end-to-end p50 | end-to-end p95 | capture p50 |
+|---|---|---|---|---|---|
+| **INT8** `mobilenet_v2_1.0_224_quant` | **18.39 ms** | **19.77 ms** | 20.70 ms | 22.35 ms | 1.06 ms |
+| **FP32** `mobilenet_v2_1.0_224` | **40.60 ms** | **43.45 ms** | 43.66 ms | 46.39 ms | 1.05 ms |
+
+INT8 is **2.21x** faster than FP32 at p50. Capture is ~1 ms and is not a factor at
+either model's scale.
+
+> **The ~100 ms inference assumption in `power_model.py` is wrong by ~5x.** Measured
+> INT8 end-to-end is **20.7 ms**, not ~100 ms. `latency_awake` must be re-set from this
+> before any break-even is quoted, and the tier boundary moves accordingly — that is
+> s10k's job, and it is now a real correction rather than a formality.
+
+> **Measure this on a supply you have verified.** The first attempt ran at a sustained
+> `throttled=0x50005` and reported INT8 p50 = 52.5 ms and a 1.37x INT8/FP32 ratio —
+> 2.9x slow, with the ratio compressed. `latency_bench.py` warned, but only because it
+> checks `get_throttled` first; the numbers themselves looked perfectly plausible.
 
 Record `P_idle`, `P_halt`, `P_boot`, `T_boot` here as soon as 0.4 is done, then re-run
 `analysis/power_model.py --measured` so every prediction below uses real numbers.
 
 | Constant | Estimate | Measured | Source |
 |---|---|---|---|
-| `P_idle` | 2.5 W | _pending_ | daemon idle, camera initialised |
-| `P_halt` | 0.5 W | _pending_ | after `sudo halt`, `WAKE_ON_GPIO=1` |
-| `P_boot` | 3.5 W | _pending_ | mean over the boot window |
-| `T_boot` | 30 s | _pending_ | wake asserted → daemon prints `# ready` |
-| `E_boot` | ~100 J | _pending_ | integral over the boot window |
-| `E_infer` (INT8) | — | _pending_ | per-event, net of idle |
+| `P_idle` | 2.5 W | **3.26 W** | daemon idle, camera initialised. Reproduced in a second session at 3.23 W |
+| `P_halt` | 0.5 W | **1.997 W** | after `sudo halt`, `WAKE_ON_GPIO=1`. **4x the estimate**; 1874 s over 3 windows |
+| `P_boot` | 3.5 W | **3.45 W** | mean over the boot window, n=3 (3.44-3.45) |
+| `T_boot` | 30 s | **25.6 s** | wake asserted → daemon prints `# ready`, n=3 (25.45-25.67). Includes a 9.4 s firmware stage |
+| `E_boot` | ~100 J | **88.3 J** | integral over the boot window. **37.1 J net of `P_halt`** |
+| `E_infer` (INT8) | 0.25 J | **61.8 mJ** | per-event, net of idle. **4x below the estimate**. 130.7 mJ wall |
+
+#### 0.4 results — Pi 4 Rev 1.5, FNB58 in line, 100.0 Hz, `throttled=0x0` throughout
+
+Three halt → GPIO3 wake → `# ready` cycles in one continuous 43.5 min trace
+(`data/boot/`), plus a separate sustained-inference session (`data/infer/`). The
+wake was a hand jumper, pin 5 → pin 20, since Tier 2 is not wired yet.
+
+| | cycle 1 | cycle 2 | cycle 3 | **mean** |
+|---|---|---|---|---|
+| firmware stage (wake → kernel) | 9.35 s | 9.34 s | 9.37 s | **9.35 s** |
+| `T_boot` (wake → `# ready`) | 25.45 s | 25.64 s | 25.67 s | **25.59 s** |
+| `P_boot` | 3.451 W | 3.440 W | 3.450 W | **3.45 W** |
+| `E_boot` wall | 87.8 J | 88.2 J | 88.5 J | **88.2 J** |
+| `E_boot` net of `P_halt` | 37.0 J | 37.0 J | 37.3 J | **37.1 J** |
+
+Two independent routes agree: explicit-window integration gave 88.2 J / 25.59 s, and
+`energy_analysis.py --boot-cycle` gave 88.5 J / 25.7 s. Trapezoid vs the meter's own
+counter: 6168.2 J vs 6168.2 J, 0.00% apart.
+
+> **The halted floor is 2.0 W, not 0.5 W.** This is the finding that moves the
+> project. `P_idle − P_halt` is **1.26 W**, not the assumed 2.0 W, so halting saves
+> far less than the model assumed. It is architectural, not a measurement error:
+> GPIO3 wake needs `POWER_OFF_ON_HALT=0`, which keeps the board partly powered.
+
+> **The boot costs almost nothing above idle.** `P_boot − P_idle` is **0.19 W**, not
+> 1.0 W. Re-running `power_model.py --measured` moves the exact break-even interval
+> from **15.0 s to 3.9 s** — halting wins for any event rate slower than ~4 s. But
+> the best-case saving (120 s interval) falls from **56% to 31%**. Halting pays off
+> more often and pays less.
+
+> **Do not measure `T_boot` from the Pi's clock.** The Pi 4 has no RTC and
+> `tier3-daemon.service` deliberately starts before the network, so the wall clock on
+> the daemon's `# ready` line is whatever `timesyncd` restored from disk — it read
+> ~100 s *before* the wake that caused it. And `uptime` starts at the kernel, missing
+> the 9.35 s firmware stage entirely: a Pi-side `T_boot` under-reports by 37%. `T_boot`
+> is the wake edge on the power trace plus the daemon's `uptime` at `# ready`.
+
+> **Fans are inside the measurement boundary.** The dual case fans run at constant
+> speed off the 5 V rail, halted or not. They cancel exactly in every *difference* —
+> so the break-even, `E_boot` net and `E_infer` net are fan-free — but they inflate
+> every *absolute* figure, including `P_halt` and the % saving. Unplug them for one
+> halted window to size that.
+
+**`E_infer`, INT8** — 3000 frames back to back with the camera, `data/infer/`.
+Busy plateau 65 s against 64.6 s expected (3030 frames × 21.32 ms mean end-to-end),
+so the window is the work. `P_busy` 6.13 W, `P_idle` 3.23 W, 46.9 inferences/s:
+
+| | per inference |
+|---|---|
+| `E_infer` wall | 130.7 mJ |
+| **`E_infer` net of idle** | **61.8 mJ** — the model's `e_infer`; estimate was 250 mJ |
+
+Keeping the camera initialised costs **0.56 W** continuously (3.23 W vs 2.67 W with
+the daemon stopped).
+
+Constants are in `data/constants.json`; `analysis/power_model.py --measured
+data/constants.json` uses them.
+
+#### Two bugs in `energy_analysis.py` this measurement exposed (fixed)
+
+1. **`find_levels` rejected a 98-second plateau.** The halted run came back as one
+   98.1 s run plus twelve sub-50 ms slivers where the transition ramps clipped the
+   edge of the ±0.25 W band, and the median of those thirteen was 0.02 s — under the
+   1 s dwell test. Transit slivers are now dropped before dwell is judged.
+2. **`--boot-cycle` could not find a boot on real hardware.** It treated a boot as the
+   power *state* entered on leaving halt. Measured, the boot is a 2.7 W firmware
+   plateau and then a noisy 3.4–5.1 W phase whose mean sits 0.19 W from idle, so no
+   level separates them; the window closed at the end of the firmware stage and
+   reported `T_boot` = 8.5 s. `--boot-cycle` now brackets by edges (halt exit →
+   kernel step + daemon uptime). State detection also smooths over 1 s first, since
+   per-sample noise was wider than the band. The synthetic round-trip still recovers
+   all seven constants, at both the estimated and the measured level spacing.
 
 ---
 
