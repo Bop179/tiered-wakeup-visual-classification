@@ -423,6 +423,8 @@ def run_pty(args) -> int:
         cmd.append("--no-camera")
     if args.fake_infer:
         cmd.append("--fake-infer")
+    elif args.no_camera:
+        cmd.append("--fake-frame")     # model on a blank frame; else the daemon fakes RES
     print(f"spawning: {' '.join(cmd)}", file=sys.stderr)
     proc = subprocess.Popen(cmd)
     os.close(slave)
