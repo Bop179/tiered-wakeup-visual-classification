@@ -120,6 +120,29 @@ the daemon stopped).
 Constants are in `data/constants.json`; `analysis/power_model.py --measured
 data/constants.json` uses them.
 
+#### Tier 2 ↔ Pi integration — Sep 12 (s12b, s12c), Uno on 9 V, fans on, `throttled=0x0`
+
+Wiring checked first with no multimeter (`firmware/wirecheck`, Uno ADC, 1.8 kΩ stand-in for
+the Pi's pull-up): TX divider **3.25 V**, wake released **3.30 V**, asserted **0.52 V**.
+The series resistor is **330 Ω, not 1 kΩ** — 1 kΩ against the Pi's 1.8 kΩ pull-up would
+leave GPIO3 at 1.18 V asserted and never wake it (INTERFACE §2.1).
+
+| check | result |
+|---|---|
+| wake pulse seen on awake Pi's GPIO3 | LOW for ~207 ms (65 of 18851 polls), firmware says 200 ms |
+| serial, both directions | `SYNC` offset, `SET`/`CFG` DORMANCY, EVT → ACK → RES (52 ms, awake) |
+| full cycle ×2: dormancy → `HALT` → halt → 20 s settle → Uno sleeps → button → boot → `# ready` → held EVT | **pass, pass.** `# ready` at uptime 11.4 s / 10.9 s; EVT → RES 42 / 39 ms, `state_at_evt=booted` |
+
+Evidence: `data/s10j_boot/` on the Pi (`daemon.log`, `events.csv` rows 1–2, `boots.csv`).
+
+> **`arduino_t_ms` freezes while Tier 2 sleeps.** The same two cycles show it: EVTs 286 s apart
+> by the Uno were ≥ 409 s apart in real time. This breaks `accuracy.py`'s pairing in every
+> cell that halts. Open item, INTERFACE §4.
+
+Firmware bugs found on the bench and fixed before this (`ce807d9`): EVT and wake now go at
+`PERSIST`, not at trigger release (every event was up to 5 s late); `REFRACTORY` runs from the
+last moment the trigger was seen asserted, so one EVT per assertion even with contact bounce.
+
 #### Two bugs in `energy_analysis.py` this measurement exposed (fixed)
 
 1. **`find_levels` rejected a 98-second plateau.** The halted run came back as one

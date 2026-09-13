@@ -23,8 +23,10 @@ Pairing results with stimulus events
 docs/INTERFACE.md pairs the Nth GEN with the Nth RES. That breaks as soon as an
 event is missed, or two land inside one boot (Tier 2 buffers one pending event and
 a later one overwrites it). So each result is matched to the stimulus onset that
-explains it, using arduino_t_ms: Tier 2's millis(), which keeps counting while the
-Pi is halted. The Pi's own clock cannot be used for this -- it has no RTC, and
+explains it, using arduino_t_ms: Tier 2's millis(). NOTE: millis() freezes during
+Tier 2's deep sleep, so its offset steps at every wake -- the single fit below only
+holds for cells that never halt (docs/INTERFACE.md section 4, open item). The Pi's
+own clock cannot be used for this -- it has no RTC, and
 after every wake it runs from the last saved time until NTP catches up.
 
   1. fit Arduino time -> Mac time on awake results: offset, then slope, because a
