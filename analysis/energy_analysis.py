@@ -278,8 +278,6 @@ def boot_cycle_windows(t: list[float], w: list[float], w_s: list[float],
     n = len(w_s)
     if n == 0 or not uptimes:
         return []
-    thresh = ((p_fw + p_idle) / 2 if p_fw is not None
-              else (p_halt + p_idle) / 2)
 
     wakes: list[float] = []
     i = 0
@@ -298,6 +296,15 @@ def boot_cycle_windows(t: list[float], w: list[float], w_s: list[float],
     for idx, wake in enumerate(wakes):
         if idx >= len(uptimes):
             break
+        # No firmware level from find_levels (a busy trace splits the plateau
+        # across several levels): read it off 1-4 s after this wake instead.
+        # (halt+idle)/2 is NOT a fallback -- measured, it sits on the ~2.65 W
+        # plateau and fires on a blip 4 s into the 9 s firmware stage.
+        fw = p_fw
+        if fw is None:
+            plateau = [w_s[k] for k in range(n) if wake + 1.0 <= t[k] <= wake + 4.0]
+            fw = statistics.median(plateau) if plateau else p_halt
+        thresh = (fw + p_idle) / 2
         kstart = None
         for k in range(n):
             if t[k] <= wake or w[k] <= thresh:
