@@ -139,6 +139,37 @@ Evidence: `data/s10j_boot/` on the Pi (`daemon.log`, `events.csv` rows 1–2, `b
 > by the Uno were ≥ 409 s apart in real time. This breaks `accuracy.py`'s pairing in every
 > cell that halts. Open item, INTERFACE §4.
 
+**s12d, one metered event with a boot in it** — `data/s12d_metered/` (power.csv on the Mac,
+logs copied from the Pi), FNB58 at 100.0 Hz, 306.6 s, trapezoid vs meter counter 0.00% apart.
+Pi halted by hand → button → boot (not measured: its `# ready` is in the previous run's log) →
+fresh run, 30 s dormancy → **clapperboard 1.99 s at 6.53 W** over 3.42 W idle → `HALT` →
+button → metered boot → `EVT` → `RES` in 49 ms, `state_at_evt=booted`, `throttled=0x0`.
+
+| metered boot | value |
+|---|---|
+| firmware stage (wake → kernel) | 9.54 s |
+| `T_boot` (wake → `# ready`) | **20.8 s** (daemon uptime 11.3 s) |
+| `E_boot` wall | 68.1 J |
+| `E_boot` net of `P_halt` 1.990 W | **26.6 J** |
+
+> **This boot is ~5 s faster than Gate 0.4** (25.6 s, 37.1 J net). The firmware stage is the
+> same; the kernel-to-`# ready` part fell from ~16.2 s to 10.9–11.4 s across all three
+> Uno-caused boots today (s12c ×2, s12d). n=1 metered, so not a new constant yet — but if it
+> holds, break-even moves again. Re-measure with a `--boot-cycle` run before s10k is closed.
+
+Two analysis gaps this run exposed:
+
+1. **Fixed — `--boot-cycle` put the kernel start 4 s into the firmware stage.** With no
+   firmware level from `find_levels` (this busier trace split the ~2.65 W plateau), the
+   kernel threshold fell back to (halt + idle)/2 = 2.71 W, right on the plateau. It now reads
+   the plateau off 1–4 s after each wake. Gate 0.4's trace still gives 88.5 J / 9.50 s;
+   the synthetic round-trip still passes.
+2. **Open — `find_clapperboard` misses a burn when the trace starts halted.** It takes its
+   baseline from the first 2 s; from a 1.99 W floor the burn sits inside a 70 s
+   above-threshold boot and is never isolated. Matrix runs start with the Pi awake, where
+   this path works, but default-mode boot windows (`find_boot_windows`, level-based) also
+   found nothing here — matrix `E_boot` should come from edge bracketing, not levels.
+
 Firmware bugs found on the bench and fixed before this (`ce807d9`): EVT and wake now go at
 `PERSIST`, not at trigger release (every event was up to 5 s late); `REFRACTORY` runs from the
 last moment the trigger was seen asserted, so one EVT per assertion even with contact bounce.
