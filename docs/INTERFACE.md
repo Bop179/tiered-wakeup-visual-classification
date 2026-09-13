@@ -165,8 +165,11 @@ GPIO3 is the I²C1 SCL pin and already carries a 1.8 kΩ pull-up to 3.3 V on the
 natural open-drain bus and needs no external pull-up. **Do not enable I²C on the Pi** — it would
 fight the wake line.
 
-Add a **1 kΩ series resistor** in the wake line as cheap insurance against a firmware slip: it
-limits the fault current if the pin is ever driven high, giving the Pi's clamp diode a chance.
+Add a **330 Ω series resistor** in the wake line as cheap insurance against a firmware slip: it
+limits the fault current if the pin is ever driven high (~4 mA into the clamp diode). **Do not go
+higher.** The series resistor and the Pi's 1.8 kΩ pull-up form a divider when the Uno asserts:
+1 kΩ leaves GPIO3 at 3.3 × 1/2.8 = 1.18 V, above the ~0.8 V LOW threshold, so the wake fails.
+330 Ω gives 0.51 V (bench-measured 0.52 V with a 1.8 kΩ stand-in, Sep 12).
 
 ### 2.2 Arduino TX into the Pi's RX needs a divider
 
@@ -209,8 +212,9 @@ Do this before the Sep 10 integration. Skipping a step here costs a Pi.
 2. Unplug the Arduino's USB cable.
 3. Power the Arduino from its own supply. **Do not connect anything to the Pi yet.**
 4. Meter Arduino D1 idle → expect ~5 V. Meter the divider's midpoint → **must read 3.2–3.3 V.**
-5. Force the firmware into "wake asserted" and meter the wake-line pin → **must read < 0.4 V.**
-   Force it into "released" and meter again → **must read open / floating, not 5 V.**
+5. Put a 1.8 kΩ from the Uno's 3.3V pin to the **Pi side** of the 330 Ω (standing in for the Pi's
+   pull-up) and measure there. Asserted → **must read < 0.8 V** (expect ~0.5 V). Released →
+   **must read ~3.3 V, never 5 V.** No multimeter: `firmware/wirecheck` reads both points on A1/A2.
 6. Only once 4 and 5 both pass: power off the Pi, connect GND first, then the wake line, then
    the two serial wires. Power the Pi last.
 
@@ -421,7 +425,7 @@ no cell needs a reflash.** The rest are compile-time.
 | `REFRACTORY_MS` | 500 | **yes**, `REFRACTORY` | Ignore new triggers for this long after an event ends (trigger released) |
 | `WAKE_ASSERT_MS` | 200 | How long GPIO3 is held low |
 | `PIN_TRIGGER` | 2 | INT0. Comparator output arrives here. |
-| `PIN_WAKE` | 7 | To Pi GPIO3 through 1 kΩ. **Open-drain only.** |
+| `PIN_WAKE` | 7 | To Pi GPIO3 through 330 Ω. **Open-drain only.** |
 | `PIN_PEAK_ADC` | A0 | Pre-comparator analog, for the `peak` field |
 
 Sleep: `SLEEP_MODE_PWR_DOWN`, woken by **INT0 level-triggered (`LOW`)** on D2 — a power-down Uno's
