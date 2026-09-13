@@ -344,9 +344,16 @@ only for *energy segmentation* — deciding which slice of the power trace belon
 If `RES` count ≠ `GEN` count, the difference is the miss count. Walking both logs forward by index
 misattributes every result after the first miss, and one boot can swallow an event and forward the
 next, so `analysis/accuracy.py` pairs each result with the stimulus onset that explains its
-**`arduino_t_ms`**. Tier 2's clock keeps counting while the Pi is halted; the Pi's own clock has no
-RTC and comes back wrong after every wake until NTP resyncs. It falls back to `t_pi`, then to index
-order, and reports which it used.
+**`arduino_t_ms`**. The Pi's own clock has no RTC and comes back wrong after every wake until NTP
+resyncs. It falls back to `t_pi`, then to index order, and reports which it used.
+
+> **Open (found Sep 12, s12c): Tier 2's clock does *not* keep counting while the Pi is halted.**
+> `SLEEP_MODE_PWR_DOWN` stops Timer0, so `millis()` freezes for the whole deep sleep. Measured:
+> two EVTs 286 s apart by `arduino_t_ms` were ≥ 409 s apart on the Mac. `arduino_t_ms` is only
+> continuous between sleeps; every wake steps its offset. `accuracy.py`'s single linear fit
+> assumes one epoch, so in halting cells it will fail and fall back. Fix before scoring those
+> cells: fit per sleep epoch (a new epoch starts at every `booted` row), or have Tier 2 report
+> the epoch.
 
 ---
 
