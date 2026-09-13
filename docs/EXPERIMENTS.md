@@ -90,8 +90,20 @@ counter: 6168.2 J vs 6168.2 J, 0.00% apart.
 > **Fans are inside the measurement boundary.** The dual case fans run at constant
 > speed off the 5 V rail, halted or not. They cancel exactly in every *difference* —
 > so the break-even, `E_boot` net and `E_infer` net are fan-free — but they inflate
-> every *absolute* figure, including `P_halt` and the % saving. Unplug them for one
-> halted window to size that.
+> every *absolute* figure, including `P_halt` and the % saving.
+>
+> Sized Sep 12 (s11d), one 18.8 min trace at 100 Hz, `data/fans/`:
+>
+> | state | fans on | fans off | fans |
+> |---|---|---|---|
+> | halted | 1.992 W | 1.271 W | **0.72 W** |
+> | idle, daemon + camera | 3.242 W | 2.593 W | **0.65 W** |
+>
+> The fans are 36% of the halted floor. They cancel to within 0.07 W between idle
+> and halted, inside the idle noise (sd 0.2 W), so the differences above stand. A
+> fanless Pi's halted floor is 1.27 W, still 2.5x the 0.5 W estimate: the rest is
+> the SoC with `POWER_OFF_ON_HALT=0`. Fans stay on for the matrix. The writeup
+> reports the fanless floor next to the measured one.
 
 **`E_infer`, INT8** — 3000 frames back to back with the camera, `data/infer/`.
 Busy plateau 65 s against 64.6 s expected (3030 frames × 21.32 ms mean end-to-end),
