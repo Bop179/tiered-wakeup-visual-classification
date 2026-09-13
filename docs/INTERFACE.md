@@ -86,7 +86,7 @@ Arduino → CFG,DORMANCY,30000
 |---|---|---|---|
 | `DORMANCY` | ms | `0`–`3600000`, or `-1` | Silence before `HALT`. **`-1` means never halt.** |
 | `PERSIST` | ms | `0`–`5000` | Trigger must hold this long to count as an event |
-| `REFRACTORY` | ms | `0`–`60000` | Ignore new triggers this long after an event |
+| `REFRACTORY` | ms | `0`–`60000` | Ignore new triggers this long after an event ends (trigger released) |
 
 Rules:
 
@@ -418,7 +418,7 @@ no cell needs a reflash.** The rest are compile-time.
 |---|---|---|---|
 | `PERSIST_MS` | 40 | **yes**, `PERSIST` | Trigger must stay asserted this long to count as an event |
 | `DORMANCY_MS` | 30000 | **yes**, `DORMANCY` | **Silence before `HALT`. This is the swept variable.** |
-| `REFRACTORY_MS` | 500 | **yes**, `REFRACTORY` | Ignore new triggers for this long after an event |
+| `REFRACTORY_MS` | 500 | **yes**, `REFRACTORY` | Ignore new triggers for this long after an event ends (trigger released) |
 | `WAKE_ASSERT_MS` | 200 | How long GPIO3 is held low |
 | `PIN_TRIGGER` | 2 | INT0. Comparator output arrives here. |
 | `PIN_WAKE` | 7 | To Pi GPIO3 through 1 kΩ. **Open-drain only.** |

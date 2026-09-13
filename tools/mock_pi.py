@@ -259,8 +259,11 @@ def conformance(link: Link, skip_halt: bool) -> int:
 
 # ------------------------------------------------------------------ serve
 
-def serve(link: Link, halted_for: float) -> int:
+def serve(link: Link, halted_for: float, dormancy_ms: int | None = None) -> int:
     print("serving as the Pi. Ground D2 (through a resistor) to fire a trigger. Ctrl-C to stop.")
+    if dormancy_ms is not None:
+        link.expect(lambda l: "tier2_firmware up" in l, 5.0, "boot banner")
+        link.send(f"SET,DORMANCY,{dormancy_ms}")
     try:
         while True:
             try:
@@ -295,12 +298,14 @@ def main() -> int:
     ap.add_argument("--latency-ms", type=int, default=21,
                     help="RES delay; 21 ms is the measured INT8 end-to-end p50")
     ap.add_argument("--halted-for", type=float, default=30.0)
+    ap.add_argument("--dormancy-ms", type=int,
+                    help="--serve: SET DORMANCY once the Uno's banner arrives")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
 
     link = Link(args.port, args.baud, args.latency_ms, args.verbose)
     try:
-        return conformance(link, args.skip_halt) if args.conformance else serve(link, args.halted_for)
+        return conformance(link, args.skip_halt) if args.conformance else serve(link, args.halted_for, args.dormancy_ms)
     finally:
         link.close()
 

@@ -73,6 +73,7 @@ static uint32_t g_last_link_activity = 0;   /* for the dormancy timer        */
 static uint32_t g_boot_deadline      = 0;
 static bool     g_boot_reasserted    = false;
 static uint32_t g_refractory_until   = 0;
+static bool     g_wait_release       = false; /* one EVT per assertion */
 
 /* Exactly one pending event is buffered. Events arriving during a boot
  * overwrite it -- Tier 2 has no queue and does not need one (section 3). */
@@ -278,12 +279,8 @@ static bool confirmTrigger(uint16_t *peak_out, uint32_t *duration_out) {
     uint16_t v = analogRead(PIN_PEAK_ADC);
     if (v > peak) peak = v;
   }
-  /* Keep sampling while it stays asserted so `duration` is how long it held
-   * before we accepted it, and `peak` is the real peak. */
-  while (triggerAsserted() && (uint32_t)(millis() - t0) < 5000UL) {
-    uint16_t v = analogRead(PIN_PEAK_ADC);
-    if (v > peak) peak = v;
-  }
+  /* Accept now. `duration` is the hold before acceptance (INTERFACE section 1);
+   * waiting for release instead delays every EVT and wake by the stimulus length. */
   *peak_out = peak;
   *duration_out = millis() - t0;
   return true;
@@ -397,7 +394,13 @@ void loop() {
   if (g_have_pending && g_pi == PI_HALTED) beginWake();
 
   /* ---- Tier 1 ---- */
-  bool armed = (int32_t)(millis() - g_refractory_until) >= 0;
+  /* REFRACTORY runs from the last moment the trigger was seen asserted, so a
+   * held trigger gives one EVT and contact bounce cannot re-arm it. */
+  if (g_wait_release) {
+    if (triggerAsserted()) g_refractory_until = millis() + g_refractory_ms;
+    else if ((int32_t)(millis() - g_refractory_until) >= 0) g_wait_release = false;
+  }
+  bool armed = !g_wait_release;
   if (armed && triggerAsserted()) {
     uint16_t peak; uint32_t dur;
     if (confirmTrigger(&peak, &dur)) {
@@ -407,6 +410,7 @@ void loop() {
       g_pend_duration_ms = dur;
       g_have_pending     = true;
       g_refractory_until = millis() + g_refractory_ms;
+      g_wait_release     = true;
     } else {
       /* Did not persist: flicker, rejected. This is Tier 1's false-positive
        * rate being measured, not an error. */
