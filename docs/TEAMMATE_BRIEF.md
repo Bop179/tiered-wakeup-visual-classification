@@ -178,7 +178,7 @@ Pins, matching `INTERFACE.md` §6:
 |---|---|
 | D0 / D1 | Serial to the Pi, 9600 8N1. **D1 goes through the divider.** |
 | D2 | Comparator output. INT0. **LOW = trigger asserted.** |
-| D7 | Wake line → 1 kΩ → Pi GPIO3. **Open-drain only.** |
+| D7 | Wake line → 330 Ω → Pi GPIO3 (not 1 kΩ, see INTERFACE §2.1). **Open-drain only.** |
 | A0 | Pre-comparator analog, for `peak` |
 
 ### State machine
