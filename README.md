@@ -30,7 +30,7 @@ Each tier only decides whether the next one needs to wake up.
 |---|---|---|---|
 | **1** | Photosensor → op-amp filter chain → comparator, all discrete | Detect a *change* in incident light. No clock, no code. | ~5 mW, always on |
 | **2** | Arduino Uno, INT0 + power-down sleep | Confirm the trigger persisted, reject one-off noise, decide when to wake and when to re-halt Tier 3 | µW asleep, ~20 mW awake |
-| **3** | Raspberry Pi 4 + HQ camera, MobileNetV2 INT8 via TFLite | Capture a frame and classify it | ~2.5 W awake, ~0.5 W halted |
+| **3** | Raspberry Pi 4 + HQ camera, MobileNetV2 INT8 via TFLite | Capture a frame and classify it | 3.26 W awake, 2.0 W halted |
 
 ```
    light ──▶ [Tier 1: analog change detector] ──comparator──▶ [Tier 2: Uno]
@@ -42,7 +42,7 @@ Each tier only decides whether the next one needs to wake up.
                                             └─────────────────────┬──────────────────┘
                                                                   ▼
                                                    [Tier 3: Pi 4 + HQ camera]
-                                                    ~2.5 W awake, ~0.5 W halted
+                                                    3.26 W awake, 2.0 W halted
 ```
 
 Tier 1 is purely analog: a high-pass to reject the ambient DC level, a gain stage, a 30–50 Hz
@@ -55,11 +55,11 @@ serial link plus an open-drain wake line — halting the Pi after a configurable
 
 | State | Power | Response to an event |
 |---|---|---|
-| Awake (daemon idle) | ~2.5 W | ~100 ms |
-| Halted | ~0.5 W | full boot, ~30 s — **blind window** |
+| Awake (daemon idle) | 3.26 W | ~100 ms |
+| Halted | 2.0 W | full boot, 20.8 s — **blind window** |
 
-There is no intermediate state; the Pi 4 has no usable suspend-to-RAM. *These are pre-measurement
-estimates; `E_boot`, `P_idle` and `P_halt` are measured on Sep 7 and this table is updated.*
+There is no intermediate state; the Pi 4 has no usable suspend-to-RAM. *Measured (fans on; 1.27 W halted
+without them) — see `docs/REPORT.md` §1. The plan's estimates were 2.5 W, 0.5 W and 30 s.*
 
 ## The benchmark
 
@@ -105,10 +105,10 @@ detect = (s + W) / (1 + W + B)
 Three consequences, all falsifiable:
 
 1. **Break-even mean inter-event interval** — where halting stops paying:
-   `1/λ* = T_boot·(P_boot − P_idle)/(P_idle − P_halt)` ≈ **15 s** at the estimated constants.
+   `1/λ* = T_boot·(P_boot − P_idle)/(P_idle − P_halt)` ≈ **0.2 s** at the measured constants (15 s at the pre-measurement estimates).
    Note `(P_boot − P_idle)`, not `(P_boot − P_halt)`: a boot displaces time the Pi would have spent
    *idle*, because the events it swallows would have kept it awake anyway. The naive renewal
-   argument gives 45 s and the back-of-envelope `E_boot/(P_idle − P_halt)` gives 52 s; both are the
+   argument gives 21 s and the back-of-envelope `E_boot/(P_idle − P_halt)` gives 54 s; both are the
    sparse-event limit and both are wrong once `λ·T_boot` stops being small.
 2. **The optimum is bang-bang.** Both power and detection are linear-fractional in `W`, hence
    monotone in `T_d`. The power-optimal dormancy timeout is **0 or ∞** — never an interior value.
@@ -172,7 +172,7 @@ tools/trigger_patch.py sweep --trimmer 2.5 --serial /dev/cu.usbmodem1101
 
 ## Honest reporting
 
-The halted Pi still draws ~0.5 W because `WAKE_ON_GPIO=1` requires `POWER_OFF_ON_HALT=0`; that caps
+The halted Pi still draws 2.0 W (1.27 W without the case fans) because `WAKE_ON_GPIO=1` requires `POWER_OFF_ON_HALT=0`; that caps
 achievable savings and it is an architectural constraint, not a measurement error. Results are
 reported **both** as measured end-to-end savings **and** as projected savings for a truly
 power-gated Tier 3, clearly labeled. Board-level Tier 2 sleep current is ~20 mA regardless of
