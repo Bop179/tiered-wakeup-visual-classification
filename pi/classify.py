@@ -36,6 +36,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 MODELS = REPO / "pi" / "models"
+# Fixed white balance: AwbEnable False with no ColourGains leaves the ISP at
+# unity gains, a cyan cast that took banana from 0.99 to "none" (Sep 18).
+# Read off AWB at the rig; recalibrate if the monitor or lighting changes.
+COLOUR_GAINS = (3.38, 1.55)
 MODEL_FILES = {
     "int8": "mobilenet_v2_1.0_224_quant.tflite",
     "fp32": "mobilenet_v2_1.0_224.tflite",
@@ -172,7 +176,8 @@ class Camera:
         # and a bright flash adds hundreds of ms of variance to every capture and
         # changes what the model sees between otherwise identical events.
         self.picam.set_controls({"AeEnable": False, "AwbEnable": False,
-                                 "ExposureTime": 8000, "AnalogueGain": 2.0})
+                                 "ExposureTime": 8000, "AnalogueGain": 2.0,
+                                 "ColourGains": COLOUR_GAINS})
         self.picam.start()
         time.sleep(0.5)   # let the sensor settle before the first frame
 

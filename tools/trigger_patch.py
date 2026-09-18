@@ -359,7 +359,7 @@ def main() -> int:
     ap.add_argument("--display", type=int, default=0)
     ap.add_argument("--patch-corner", choices=["tl", "tr", "bl", "br"], default=DEFAULT_PATCH_CORNER)
     ap.add_argument("--patch-frac", type=float, default=DEFAULT_PATCH_FRAC)
-    ap.add_argument("--lead-in", type=float, default=3.0)
+    ap.add_argument("--lead-in", type=float, default=10.0)  # macOS fullscreen takes 6-8 s
     ap.add_argument("--roc-out", type=Path,
                     help="default data/tier1_roc.csv (a --dry-run writes nothing unless given)")
     ap.add_argument("--detail-dir", type=Path, default=REPO / "data" / "tier1_roc_detail")

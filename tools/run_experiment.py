@@ -300,7 +300,7 @@ def split_post_run(run_dir: Path, boot_ids: list[str]) -> int:
 def wake_flash(args) -> None:
     subprocess.call([sys.executable, str(REPO / "tools" / "trigger_patch.py"), "flash",
                      "--count", "1", "--contrast", "1", "--flash-ms", "2000",
-                     "--lead-in", "1", "--gap-s", "0.5", "--jitter-s", "0",
+                     "--lead-in", "10", "--gap-s", "0.5", "--jitter-s", "0",
                      "--display", str(args.display)], cwd=REPO)
 
 
