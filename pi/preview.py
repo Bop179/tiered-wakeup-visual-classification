@@ -15,7 +15,9 @@ from picamera2.encoders import MJPEGEncoder
 from picamera2.outputs import FileOutput
 
 PAGE = b"""<html><head><title>Pi camera</title></head>
-<body style="margin:0;background:#111"><img src="/stream.mjpg" style="width:100%"></body></html>"""
+<body style="margin:0;background:#111">
+<img src="/stream.mjpg" style="display:block;width:100vw;height:100vh;object-fit:contain">
+</body></html>"""
 
 
 class Frames(io.BufferedIOBase):
