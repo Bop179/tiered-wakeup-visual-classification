@@ -80,6 +80,15 @@ counter: 6168.2 J vs 6168.2 J, 0.00% apart.
 > the best-case saving (120 s interval) falls from **56% to 31%**. Halting pays off
 > more often and pays less.
 
+> **Sep 18 re-measure, Uno-caused wakes (`data/s18_tboot/`), supersedes the `T_boot`,
+> `P_boot` and `E_boot` rows above.** Three button → Uno → GPIO3 wakes: `T_boot`
+> **20.8 s** (20.66–20.92), `P_boot` **3.27 W**, `E_boot` **68.1 J** wall, **26.6 J** net,
+> firmware stage 9.54 s. A fourth wake was dropped: a second button press during that
+> boot put it at 26.8 s. This matches s12d (20.8 s, 26.6 J). The firmware stage is the
+> same as Gate 0.4, and the 4.8 s gap is all kernel → `# ready` (16.2 → 11.3 s uptime).
+> `constants.json` now holds these values. With them `P_boot − P_idle` is 0.01 W, and the
+> exact break-even is 0.2 s, i.e. zero within noise.
+
 > **Do not measure `T_boot` from the Pi's clock.** The Pi 4 has no RTC and
 > `tier3-daemon.service` deliberately starts before the network, so the wall clock on
 > the daemon's `# ready` line is whatever `timesyncd` restored from disk — it read
