@@ -347,13 +347,13 @@ next, so `analysis/accuracy.py` pairs each result with the stimulus onset that e
 **`arduino_t_ms`**. The Pi's own clock has no RTC and comes back wrong after every wake until NTP
 resyncs. It falls back to `t_pi`, then to index order, and reports which it used.
 
-> **Open (found Sep 12, s12c): Tier 2's clock does *not* keep counting while the Pi is halted.**
+> **Tier 2's clock does *not* keep counting while the Pi is halted** (found Sep 12, s12c).
 > `SLEEP_MODE_PWR_DOWN` stops Timer0, so `millis()` freezes for the whole deep sleep. Measured:
 > two EVTs 286 s apart by `arduino_t_ms` were ≥ 409 s apart on the Mac. `arduino_t_ms` is only
-> continuous between sleeps; every wake steps its offset. `accuracy.py`'s single linear fit
-> assumes one epoch, so in halting cells it will fail and fall back. Fix before scoring those
-> cells: fit per sleep epoch (a new epoch starts at every `booted` row), or have Tier 2 report
-> the epoch.
+> continuous between sleeps; every wake steps its offset. **Handled (Sep 18):** in runs with
+> `booted` rows, `accuracy.py` fits one offset per sleep epoch, starting a new epoch at every
+> `booted` row. Known limit: an epoch that is only a boot is placed on the next unclaimed
+> onset, so a Tier 1 miss while the Pi is halted shifts that one boot's pairing.
 
 ---
 

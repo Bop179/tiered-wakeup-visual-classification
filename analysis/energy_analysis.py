@@ -278,6 +278,11 @@ def boot_cycle_windows(t: list[float], w: list[float], w_s: list[float],
     n = len(w_s)
     if n == 0 or not uptimes:
         return []
+    # A trace that opens awake caught a boot whose wake came before logging:
+    # its "# ready" has no wake here, and pairing by index would shift every
+    # boot onto the previous one's uptime (s18_tboot: T_boot 87 s from 77.5).
+    if abs(w_s[0] - p_halt) > halt_tol:
+        uptimes = uptimes[1:]
 
     wakes: list[float] = []
     i = 0
