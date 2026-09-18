@@ -327,11 +327,20 @@ def boot_cycle_windows(t: list[float], w: list[float], w_s: list[float],
 
 
 def find_clapperboard(t: list[float], w: list[float], duration: float = 2.0,
-                      min_step_w: float = 0.8) -> float | None:
-    """Start time of the first sustained step of >= min_step_w lasting ~duration."""
+                      min_step_w: float = 0.8, near: float | None = None,
+                      tol_s: float = 2.0) -> float | None:
+    """Start time of the first sustained step of >= min_step_w lasting ~duration.
+
+    near: where the ssh clock offset puts it. A trace that opens below idle
+    (harness, 2.4 W) makes plain idle a "step", and a 1.4 s idle stretch then
+    passes for the burn 3 s early; only plateaus within tol_s of near count.
+    """
     if len(t) < 20:
         return None
-    baseline = statistics.median(w[:min(len(w), 200)])
+    # With near, the level just before it: the burn rides on idle, and against
+    # the trace-start level it never ends.
+    pre = [y for x, y in zip(t, w) if near is not None and near - 5 <= x <= near - 0.5]
+    baseline = statistics.median(pre or w[:min(len(w), 200)])
     threshold = baseline + min_step_w
     i, n = 0, len(t)
     while i < n:
@@ -344,7 +353,8 @@ def find_clapperboard(t: list[float], w: list[float], duration: float = 2.0,
         held = t[min(j, n - 1)] - t[i]
         # Accept a plateau roughly as long as the burn: inference spikes are far
         # shorter, and boot ramps are far longer.
-        if 0.6 * duration <= held <= 2.0 * duration:
+        if 0.6 * duration <= held <= 2.0 * duration and \
+                (near is None or abs(t[i] - near) <= tol_s):
             return t[i]
         i = j + 1
     return None
@@ -447,34 +457,35 @@ def analyse_run(run_dir: Path, args) -> dict:
     out["frac_time_low_state"] = sum(1 for v in w if v <= split) / len(w)
 
     # ---------------------------------------------------------- clapperboard
-    clap = find_clapperboard(t, w, args.clapperboard)
+    t_pi = None
+    log = run_dir / "daemon.log"
+    if log.exists():
+        for line in log.read_text().splitlines():
+            if line.startswith("# clapperboard "):
+                try:
+                    t_pi = float(line.split()[2])
+                except (IndexError, ValueError):
+                    pass
+                break
+    cs = manifest.get("clock_start") or {}
+    # the manifest offset is (Pi - Mac); the clapperboard gives (Mac - Pi)
+    near = t_pi - cs["offset_s"] if (t_pi is not None
+                                     and cs.get("offset_s") is not None) else None
+    clap = find_clapperboard(t, w, args.clapperboard, near=near)
     out["clapperboard_t_mac"] = clap
     if clap is None:
         out["warning_clap"] = ("no clapperboard step found -- events.csv cannot be "
                                "placed on the power trace; check the daemon ran and "
                                "that the logger started first")
-    else:
-        log = run_dir / "daemon.log"
-        if log.exists():
-            for line in log.read_text().splitlines():
-                if not line.startswith("# clapperboard "):
-                    continue
-                try:
-                    t_pi = float(line.split()[2])
-                except (IndexError, ValueError):
-                    break
-                out["pi_to_mac_offset_s"] = clap - t_pi
-                cs = manifest.get("clock_start") or {}
-                if cs.get("offset_s") is not None:
-                    # the manifest offset is (Pi - Mac); the clapperboard gives
-                    # (Mac - Pi), so they should be equal and opposite
-                    disagree = abs((-cs["offset_s"]) - (clap - t_pi))
-                    out["clock_disagreement_s"] = disagree
-                    if disagree > 0.1:
-                        out["warning_clock"] = (
-                            f"ssh offset and clapperboard disagree by "
-                            f"{disagree:.3f} s -- trusting the clapperboard")
-                break
+    elif t_pi is not None:
+        out["pi_to_mac_offset_s"] = clap - t_pi
+        if near is not None:
+            disagree = abs(clap - near)
+            out["clock_disagreement_s"] = disagree
+            if disagree > 0.1:
+                out["warning_clock"] = (
+                    f"ssh offset and clapperboard disagree by "
+                    f"{disagree:.3f} s -- trusting the clapperboard")
 
     # -------------------------------------------------- per-event energetics
     per_event = []

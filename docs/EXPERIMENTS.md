@@ -299,7 +299,7 @@ distribution, not just the mean — the halted case's variance is the boot-time 
 
 | Run ID | Date | Exp | dormancy_ms | mean interval | duration_ms | contrast | model | N | Detect % | Avg P (W) | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| _(first run appends here)_ | | | | | | | | | | | |
+| `20260918T190214Z_i20_d10000_t-1_c0.8_int8_harness` | 20260918 | | -1 | 20 s | 10000 | 0.8 | int8 | 6 | | |  |
 
 ---
 
