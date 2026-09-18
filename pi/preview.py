@@ -11,6 +11,7 @@ from http import server
 from socketserver import ThreadingMixIn
 
 from picamera2 import Picamera2
+from classify import COLOUR_GAINS
 from picamera2.encoders import MJPEGEncoder
 from picamera2.outputs import FileOutput
 
@@ -69,7 +70,8 @@ if __name__ == "__main__":
     if "--auto" not in sys.argv:
         # Same fixed exposure as classify.Camera, so brightness matches what the model sees
         cam.set_controls({"AeEnable": False, "AwbEnable": False,
-                          "ExposureTime": 8000, "AnalogueGain": 2.0})
+                          "ExposureTime": 8000, "AnalogueGain": 2.0,
+                          "ColourGains": COLOUR_GAINS})
     cam.start_recording(MJPEGEncoder(), FileOutput(frames))
     try:
         print("preview on :8000, Ctrl-C to stop", flush=True)

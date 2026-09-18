@@ -306,7 +306,9 @@ def main() -> int:
                     default=DEFAULT_PATCH_CORNER)
     ap.add_argument("--patch-frac", type=float, default=DEFAULT_PATCH_FRAC,
                     help="patch side as a fraction of the screen's short edge")
-    ap.add_argument("--lead-in", type=float, default=3.0,
+    # macOS takes 6-8 s to bring a fullscreen window up (camera saw the desktop
+    # until 6 s after "shown", Sep 18); an event before that is never on screen.
+    ap.add_argument("--lead-in", type=float, default=10.0,
                     help="black seconds before the first and after the last event")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("-o", "--out", default="gen.csv")
