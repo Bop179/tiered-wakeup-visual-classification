@@ -180,8 +180,10 @@ def fig_trace(run_dir: Path, C, args, plt):
     # Single series: no legend box; the title names it.
     ax.plot(rel, w, color=C["series"][0], linewidth=1.0)
 
-    levels = [lv["watts"] for lv in ea.find_levels(t, w, min_dwell_s=args.min_dwell_s)]
-    boots, _ = ea.find_boot_windows(t, w, levels, args.min_boot_s)
+    boots = summary.get("boot_windows_t")
+    if boots is None:  # summary predates boot_windows_t: fall back to the level method
+        levels = [lv["watts"] for lv in ea.find_levels(t, w, min_dwell_s=args.min_dwell_s)]
+        boots, _ = ea.find_boot_windows(t, w, levels, args.min_boot_s)
     for k, (b0, b1) in enumerate(boots):
         ax.axvspan(b0 - t0, b1 - t0, color=C["series"][1], alpha=0.16, zorder=0,
                    label="boot" if k == 0 else None)

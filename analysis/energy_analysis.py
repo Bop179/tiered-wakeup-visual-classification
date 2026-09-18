@@ -513,6 +513,8 @@ def analyse_run(run_dir: Path, args) -> dict:
             out["firmware_stage_s"] = {"mean": statistics.fmean(fw),
                                        "min": min(fw), "max": max(fw)}
     out["n_boot_windows"] = len(boots)
+    # The windows themselves, so plots.py shades what was integrated, not a re-guess.
+    out["boot_windows_t"] = [[a, b] for a, b in boots]
     e_boots, t_boots, p_boots, net_boots = [], [], [], []
     for b0, b1 in boots:
         e, span = integrate(t, w, b0, b1)
