@@ -3,6 +3,7 @@
 # One run_experiment.py per cell; a failed cell is logged and skipped, not retried.
 #   tools/overnight.sh            # run
 #   DRY=1 tools/overnight.sh      # schedules and manifests only, no hardware
+#   tools/overnight.sh 5          # skip the first 5 cells (resume after a failure)
 # Stop between cells: touch overnight_stop (the running cell finishes first).
 cd "${0:A:h}/.." || exit 1
 DUR=15000   # ~0.7 * T_boot (20.8 s, s18_tboot): still shorter than a boot
@@ -12,6 +13,7 @@ CELLS=(
   "20 15000"  "45 15000"  "20 60000"  "45 60000"  # dormancy shape (~1.8 h)
   "120 30000" "120 -1"                           # sparse end (~3 h)
 )
+CELLS=(${CELLS[@]:${1:-0}})   # tools/overnight.sh 5  -> resume after 5 done cells
 log=data/overnight_$(date +%m%d_%H%M).log
 rm -f overnight_stop
 for c in $CELLS; do
