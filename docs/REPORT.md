@@ -105,3 +105,121 @@ one of the model's assumptions is wrong, and which one it is becomes the result.
 
 With 40 events, a detection rate carries about ±0.08 of binomial noise at p≈0.5, so treat
 single-cell deviations smaller than that as agreement.
+
+## 4. Checking the predictions
+
+**The Pareto front is straight, and its slope is the predicted `K`.** Fitting a line to the
+(awake-detection, measured power) points at each interval:
+
+| Mean interval | Predicted `K` | Fitted `K` | Ratio | r² | n |
+|---|---|---|---|---|---|
+| 20 s | +0.614 | +0.776 | 1.26 | 0.801 | 4 |
+| 45 s | +0.861 | +0.926 | 1.08 | **0.989** | 4 |
+| 120 s | +1.075 | +1.006 | 0.94 | — | 2 |
+
+At 45 s the front is straight to r² = 0.989 and the slope is within 8% of the number registered
+before the run. At 120 s, with only two dormancy settings, the slope is within 6%. At 20 s the
+front is visibly noisier (r² = 0.80) and 26% too steep.
+
+**The 20 s miss has a known cause, and it is ours, not the model's.** `event_display.py` draws each
+exponential gap *after* the previous image finishes, so onsets are 15 s + Exp(interval) apart, not
+Exp(interval). At a nominal 20 s interval that is a 75% inflation of the true mean gap; at 120 s it
+is 12%. The cells therefore halt more often than the model was told they would, and the error runs
+in exactly the direction the ranking of r² shows: worst at 20 s, best at 120 s. The model is not
+falsified here — it was fed the wrong arrival process. A post-hoc re-run with the as-run process is
+the obvious correction and is not yet done.
+
+**Break-even was predicted at ≈ 0 s and behaves that way.** Every halting cell drew less average
+power than its never-halting partner at the same interval, at every interval tested, down to 20 s.
+No crossover was observed, as predicted.
+
+### 4.1 What the model did not predict
+
+The model reasons about *detection* — was the Pi awake to see the event. It has no notion of whether
+the event was **still there** once the Pi finished booting. It is:
+
+**`T_boot` (20.8 s) is longer than an image is shown (15 s).** A Pi woken by an event finishes
+booting after the image it was woken for has already left the screen, and photographs a blank
+monitor. The event counts as detected, answered, and classified — wrongly.
+
+| Cells | End-to-end top-1 | Against a 0.700 ceiling |
+|---|---|---|
+| never-halt (3 cells) | 0.525, 0.550, 0.550 | 75–79% of ceiling |
+| halting (7 cells) | 0.025 – 0.400 | 4–57% of ceiling |
+
+Among the halting cells the ordering is monotone in how *little* they halt: 60 s dormancy keeps
+0.275–0.400, 15 s dormancy collapses to 0.025–0.125. This is not classifier noise. It is the boot
+time and the stimulus duration interacting, and it is the most important result of the project:
+
+> **Dormancy buys up to 27% of Pi-rail energy and costs up to 95% of end-to-end accuracy, because
+> the Pi finishes booting after the thing it woke for is gone.**
+
+A tiered wake-up system whose slow tier boots slower than its stimulus lasts does not have an energy
+/ accuracy trade-off worth making. The fix is not a better classifier; it is either a stimulus that
+persists past `T_boot`, or a Tier 3 that resumes in well under 20.8 s (suspend-to-RAM rather than
+halt), or a Tier 2 that buffers a frame for the Pi to classify on waking. None of the three was in
+scope for this build, and naming that is the honest conclusion.
+
+## 5. The four numbers
+
+Per the project question, measured across the 10 matrix cells.
+
+| | Best cell | Range across halting cells |
+|---|---|---|
+| **Energy saved** vs an always-on Pi (3.26 W idle) | **26.9%** (120 s / 30 s) | 8.1 – 26.9% |
+| **Inferences avoided** vs always-on at 1 fps | **99.4%** | 97.4 – 99.4% |
+| **Events missed** (not answered while awake) | 0.05 (120 s / never) | 0.05 – 0.875 |
+| **Accuracy lost** vs the 0.700 ceiling | 0.15 (never-halt) | 0.30 – 0.675 |
+
+"Inferences avoided" is close to meaningless as a headline: an always-on 1 fps baseline is a straw
+man, since nothing in this system would ever run the classifier at 1 fps. The per-event baseline in
+`accuracy.json` (`always_on_one_frame_per_event_duration`) gives 62% avoided and is the fairer
+comparison. Quote that one.
+
+## 6. Framing the savings honestly
+
+**Everything measured here is the Pi rail only.** The FNB58 sits between the wall brick and the Pi.
+Tier 1 and Tier 2 draw their own current and **were never metered** — §5 of
+`docs/trigger_characterization.md` is empty because no DMM was ever put in series with either board.
+An Arduino Uno idles around 20 mA at 5 V, roughly 0.1 W, which is about 8% of the best cell's
+0.88 W saving; that figure is a datasheet expectation, not a measurement. **The cascade is not
+demonstrated to be net-positive in energy.** It is demonstrated to reduce Pi-rail energy.
+
+**The halted floor is 2.0 W, not zero.** `POWER_OFF_ON_HALT=0` is required for GPIO3 wake, so a
+halted Pi keeps its always-on rail energised. Of that floor, 0.72 W is the case fans, which ran
+throughout and are a measurement-boundary term, not a property of the design. The fanless halted
+floor is **1.27 W**.
+
+**Projected, clearly labelled as projected:** the best cell spends 75.7% of its wall time in the
+halted state. A Tier 3 that could be power-gated to ~0 W for that time, with the same 20.8 s boot,
+would go from 26.9% saved to **73.3%** — or **56.4%** if the case fans keep running, since they sit
+on the always-on rail and gating the Pi does not switch them off. Both figures are arithmetic on the
+measured halted fraction, not measurements: no power-gated configuration was built, and gating the
+Pi's rail would break the GPIO3 wake this design depends on.
+
+**Single night, n = 1 per cell.** The Sep 13–17 window was lost to a loose camera ribbon, so every
+cell is one 45-minute run with 40 events. Detection rates carry ±0.08 of binomial noise. No cell was
+repeated, so there is no run-to-run variance estimate anywhere in this report.
+
+**One cell's classification is scored by index order.** The 20 s / 30 s cell has no usable
+`arduino_t_ms` fit, so `accuracy.py` fell back to pairing results with stimuli in index order and
+warns that results after a miss may be misattributed. Its 0.075 end-to-end figure should be treated
+as indicative only. The other nine cells fitted the clock per sleep epoch.
+
+**No ROC, so no defensible operating point.** The Tier 1 threshold was bracketed by hand, not chosen
+from a sensitivity/false-trigger curve. The report cannot claim the trigger sits at a justified point
+on a ROC, because the sweep was cut with the rest of Sep 13–17.
+
+### Reproducing the figures
+
+```sh
+.venv/bin/python analysis/plots.py data/ --tag overnight          # pareto.png
+.venv/bin/python analysis/plots.py \
+    data/20260919T180457Z_i120_d15000_t30000_c0.8_int8_overnight \
+    --only trace                                                  # trace.png
+```
+
+`--tag` is required: without it the eight Sep 19 rehearsals land in the Pareto alongside the matrix
+and the front zig-zags between two populations. The trace is generated from a named cell rather than
+the tag, because the tag's newest run is a never-halt cell with no boots in it — a flat line, and the
+one thing the trace exists to show is the halt/boot staircase.

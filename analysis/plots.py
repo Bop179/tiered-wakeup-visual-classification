@@ -358,6 +358,8 @@ def main() -> int:
     ap.add_argument("--constants", type=Path, default=REPO / "data" / "constants.json")
     ap.add_argument("--roc-csv", type=Path,
                     default=REPO / "data" / "tier1_roc.csv")
+    ap.add_argument("--tag", help="keep only runs whose run_id ends in this "
+                                  "--tag, e.g. overnight")
     ap.add_argument("--min-boot-s", type=float, default=8.0)
     ap.add_argument("--min-dwell-s", type=float, default=1.0)
     ap.add_argument("--format", default="png", choices=["png", "pdf", "svg"])
@@ -377,7 +379,13 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
 
     runs = load_runs(args.path if args.path.is_dir() else args.path.parent)
-    print(f"{len(runs)} analysed run(s) under {args.path}")
+    if args.tag:
+        # run_id ends in the --tag given to run_experiment.py. Without this the
+        # rehearsals land in the matrix figures: same intervals, different
+        # duration, and the Pareto line zig-zags between two populations.
+        runs = [r for r in runs if str(r.get("run_id", "")).endswith(args.tag)]
+    print(f"{len(runs)} analysed run(s) under {args.path}"
+          + (f" tagged {args.tag}" if args.tag else ""))
     if not runs:
         print("Nothing to plot yet. Run analysis/energy_analysis.py on the run\n"
               "directories first -- it writes the summary.json this reads.")
@@ -395,7 +403,9 @@ def main() -> int:
     if (args.path / "power.csv").exists():
         builders.append(("trace", lambda: fig_trace(args.path, C, args, plt)))
     elif runs:
-        newest = max((p.parent for p in args.path.rglob("power.csv")),
+        keep = {r.get("run_id") for r in runs}      # honour --tag here too
+        newest = max((p.parent for p in args.path.rglob("power.csv")
+                      if p.parent.name in keep),
                      key=lambda d: d.stat().st_mtime, default=None)
         if newest:
             builders.append(("trace", lambda: fig_trace(newest, C, args, plt)))
