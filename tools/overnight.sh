@@ -5,7 +5,7 @@
 #   DRY=1 tools/overnight.sh      # schedules and manifests only, no hardware
 # Stop between cells: touch overnight_stop (the running cell finishes first).
 cd "${0:A:h}/.." || exit 1
-DUR=10000   # ~0.5 * T_boot (20.8 s, s18_tboot)
+DUR=15000   # ~0.7 * T_boot (20.8 s, s18_tboot): still shorter than a boot
 # interval_s dormancy_ms  (-1 = never halt)
 CELLS=(
   "20 30000"  "20 -1"  "45 30000"  "45 -1"      # core: halt vs never, 2 rates (~1.8 h)

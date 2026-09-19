@@ -300,6 +300,12 @@ distribution, not just the mean — the halted case's variance is the boot-time 
 | Run ID | Date | Exp | dormancy_ms | mean interval | duration_ms | contrast | model | N | Detect % | Avg P (W) | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `20260918T190214Z_i20_d10000_t-1_c0.8_int8_harness` | 20260918 | | -1 | 20 s | 10000 | 0.8 | int8 | 6 | | |  |
+| `20260918T194053Z_i20_d10000_t-1_c0.8_int8_harness` | 20260918 | rehearsal | -1 | 20 s | 10000 | 0.8 | int8 | 6 planned | n/a | | Aborted: operator confirmed no D2 presses. Zero events do not measure detection. Cleanup and exit dormancy -1 acknowledged; excluded from benchmark. |
+| `20260918T194355Z_i20_d10000_t-1_c0.8_int8_harness_retest` | 20260918 | harness | -1 verified | 20 s | 10000 | 0.8 | int8 | 6 | 100 | 3.228 | D2: 6/6 matched, 0 misses/spurious; camera top-1 2/6 vs source 5/6; banana 2/2, no false fires. Fixed gains, Sidecar display 1, unchanged framing. 100.1 Hz power; clean release and exit dormancy -1; Tier 1 untested. |
+| `20260919T034521Z_i20_d10000_t30000_c0.8_int8_rehearsal` | 20260919 | | 30000 | 20 s | 10000 | 0.8 | int8 | 8 | | |  |
+| `20260919T040134Z_i20_d10000_t30000_c0.8_int8_rehearsal` | 20260919 | | 30000 | 20 s | 10000 | 0.8 | int8 | 8 | | |  |
+| `20260919T044008Z_i20_d10000_t30000_c0.8_int8_rehearsal` | 20260919 | | 30000 | 20 s | 10000 | 0.8 | int8 | 8 | | |  |
+| `20260919T061931Z_i20_d10000_t30000_c0.8_int8_rehearsal` | 20260919 | | 30000 | 20 s | 10000 | 0.8 | int8 | 8 | | |  |
 
 ---
 

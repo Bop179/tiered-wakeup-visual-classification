@@ -159,6 +159,7 @@ class SerialSource:
                     continue
                 t = time.time()
                 self.n_lines += 1
+                print(f"# uno: {line}", file=sys.stderr)
                 if self.pattern.search(line):
                     self.times.append(t)
                 if not self.answer:
@@ -167,6 +168,11 @@ class SerialSource:
                 if parts[0] == "EVT" and len(parts) >= 4:
                     self._send("ACK")
                     self._send("RES,-1,0.000,0")
+                elif "wake" in line:
+                    # The Uno believes the Pi is halted (a missed greeting or ACK) and
+                    # holds every EVT until "# ready". Be the Pi coming back.
+                    self._send("# ready")
+                    self._send("SET,DORMANCY,-1")
                 elif parts[0] == "SYNC":
                     self._send(f"SYNC,{int(time.monotonic() * 1000) & 0xFFFFFFFF}")
                 elif parts[0] == "HALT":
@@ -214,7 +220,12 @@ def run_window(args, flashes, quiet_s, serial_src):
         sys.exit("pygame not installed. Run tools/setup_mac.sh, or use --dry-run.")
     pygame.init()
     pygame.mouse.set_visible(False)
-    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.SCALED,
+    # SCALED needs a real size, just as in event_display.run_display().
+    desktops = pygame.display.get_desktop_sizes()
+    if not 0 <= args.display < len(desktops):
+        sys.exit(f"--display {args.display} out of range: "
+                 f"{len(desktops)} display(s) attached")
+    screen = pygame.display.set_mode(desktops[args.display], pygame.FULLSCREEN | pygame.SCALED,
                                      display=args.display, vsync=1)
     w, h = screen.get_size()
     rect = patch_rect(w, h, args.patch_corner, args.patch_frac)
@@ -356,10 +367,11 @@ def main() -> int:
     ap.add_argument("--match", default=r"^EVT,", help="regex: which serial lines are triggers")
     ap.add_argument("--listen-only", action="store_true",
                     help="with --serial, do not answer like a Pi")
-    ap.add_argument("--display", type=int, default=0)
+    ap.add_argument("--display", type=int, default=1,
+                    help="monitor index (default: 1, external rig display; 0 = built-in)")
     ap.add_argument("--patch-corner", choices=["tl", "tr", "bl", "br"], default=DEFAULT_PATCH_CORNER)
     ap.add_argument("--patch-frac", type=float, default=DEFAULT_PATCH_FRAC)
-    ap.add_argument("--lead-in", type=float, default=10.0)  # macOS fullscreen takes 6-8 s
+    ap.add_argument("--lead-in", type=float, default=3.0)
     ap.add_argument("--roc-out", type=Path,
                     help="default data/tier1_roc.csv (a --dry-run writes nothing unless given)")
     ap.add_argument("--detail-dir", type=Path, default=REPO / "data" / "tier1_roc_detail")

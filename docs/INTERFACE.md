@@ -204,6 +204,17 @@ the Pi's USB rail is not guaranteed while it is halted, and Tier 2 must stay ali
 Do not power the Pi from the Arduino. Only **GND, wake line and the two serial wires** cross between
 them — four wires total.
 
+**Powering the Uno from the Mac's USB is fine** (it is a separate supply from the Pi), and is the
+default since Sep 18 to spare the 9 V battery. Two rules:
+
+1. **While Pi pin 8 → Uno D0 is connected, nothing on the Mac opens the Uno's port** —
+   no `trigger_patch.py --serial`, no `mock_pi.py`, no Arduino IDE Serial Monitor or upload. The
+   Mac and the Pi would both drive D0 and corrupt the link, and opening the port resets the Uno
+   (DTR), which drops the run. Pull the pin 8 wire for any USB serial test; put it back before a
+   run with the Pi.
+2. **Take the 9 V off when USB powers it.** With anything on the barrel jack / VIN the Uno switches
+   to that supply automatically and the battery drains regardless.
+
 ### 2.5 Wiring checklist, in this order
 
 Do this before the Sep 10 integration. Skipping a step here costs a Pi.
@@ -427,7 +438,7 @@ no cell needs a reflash.** The rest are compile-time.
 
 | Constant | Default | Runtime-settable | What it does |
 |---|---|---|---|
-| `PERSIST_MS` | 40 | **yes**, `PERSIST` | Trigger must stay asserted this long to count as an event |
+| `PERSIST_MS` | 10 (40 until Sep 18) | **yes**, `PERSIST` | Trigger must stay asserted this long to count as an event |
 | `DORMANCY_MS` | 30000 | **yes**, `DORMANCY` | **Silence before `HALT`. This is the swept variable.** |
 | `REFRACTORY_MS` | 500 | **yes**, `REFRACTORY` | Ignore new triggers for this long after an event ends (trigger released) |
 | `WAKE_ASSERT_MS` | 200 | How long GPIO3 is held low |

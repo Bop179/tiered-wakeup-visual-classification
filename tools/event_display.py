@@ -148,8 +148,8 @@ def log_row(writer, sink, t: float, idx: int, item: dict, target: str) -> None:
 
 # -------------------------------------------------------------------- render
 
-DEFAULT_PATCH_CORNER = "tr"
-DEFAULT_PATCH_FRAC = 0.18
+DEFAULT_PATCH_CORNER = "bl"
+DEFAULT_PATCH_FRAC = 0.25
 
 
 def patch_rect(w: int, h: int, corner: str = DEFAULT_PATCH_CORNER,
@@ -195,9 +195,11 @@ def run_display(args, schedule: list[dict], writer, sink) -> None:
     patch = patch_rect(w, h, args.patch_corner, args.patch_frac)
     side = patch[2]
 
-    # Image region: centred, leaving the patch corner clear.
-    margin = side + int(min(w, h) * 0.04)
-    box = pygame.Rect(margin, margin, w - 2 * margin, h - 2 * margin)
+    # Image region: centred, clear of the patch columns on both sides, full height.
+    gap = int(min(w, h) * 0.04)
+    mx = side + gap
+    box = pygame.Rect(mx, gap, w - 2 * mx, h - 2 * gap)
+    assert not box.colliderect(patch), "image box overlaps the trigger patch"
 
     cache: dict[str, "pygame.Surface"] = {}
 
@@ -301,14 +303,13 @@ def main() -> int:
     ap.add_argument("--flicker-duration-ms", type=int, default=200)
     ap.add_argument("--target-class", default="banana")
     ap.add_argument("--images", default=str(REPO / "images"))
-    ap.add_argument("--display", type=int, default=0)
+    ap.add_argument("--display", type=int, default=1,
+                    help="monitor index (default: 1, external rig display; 0 = built-in)")
     ap.add_argument("--patch-corner", choices=["tl", "tr", "bl", "br"],
                     default=DEFAULT_PATCH_CORNER)
     ap.add_argument("--patch-frac", type=float, default=DEFAULT_PATCH_FRAC,
                     help="patch side as a fraction of the screen's short edge")
-    # macOS takes 6-8 s to bring a fullscreen window up (camera saw the desktop
-    # until 6 s after "shown", Sep 18); an event before that is never on screen.
-    ap.add_argument("--lead-in", type=float, default=10.0,
+    ap.add_argument("--lead-in", type=float, default=3.0,
                     help="black seconds before the first and after the last event")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("-o", "--out", default="gen.csv")

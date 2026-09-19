@@ -151,7 +151,7 @@ def conformance(link: Link, skip_halt: bool) -> int:
           lambda: link.expect(lambda l: l == BANNER, 6.0, repr(BANNER)) and None)
 
     # -- GET defaults are the section 6 values --------------------------------
-    for key, val in (("DORMANCY", 30000), ("PERSIST", 40), ("REFRACTORY", 500)):
+    for key, val in (("DORMANCY", 30000), ("PERSIST", 10), ("REFRACTORY", 500)):
         link.send(f"GET,{key}")
         check(f"GET {key} default = {val}", lambda k=key, v=val: cfg_is(k, v))
 
@@ -172,7 +172,7 @@ def conformance(link: Link, skip_halt: bool) -> int:
     check("PERSIST clamps low to 0", lambda: cfg_is("PERSIST", 0))
     link.send("SET,REFRACTORY,70000")
     check("REFRACTORY clamps high to 60000", lambda: cfg_is("REFRACTORY", 60000))
-    link.send("SET,PERSIST,40"); link.expect(lambda l: l.startswith("CFG,PERSIST"), 2, "restore")
+    link.send("SET,PERSIST,10"); link.expect(lambda l: l.startswith("CFG,PERSIST"), 2, "restore")
     link.send("SET,REFRACTORY,500"); link.expect(lambda l: l.startswith("CFG,REFRACTORY"), 2, "restore")
 
     # -- unknown key: a comment and NO CFG --------------------------------------
@@ -198,11 +198,11 @@ def conformance(link: Link, skip_halt: bool) -> int:
     # -- parser robustness: none of these may wedge it ---------------------------
     def still_alive(label: str):
         link.send("GET,PERSIST")
-        cfg_is("PERSIST", 40)
+        cfg_is("PERSIST", 10)
         return label
 
     link.send("", raw=b"GET,PERSIST\r\n")
-    check("CRLF accepted and stripped", lambda: cfg_is("PERSIST", 40))
+    check("CRLF accepted and stripped", lambda: cfg_is("PERSIST", 10))
     link.send("# a comment, ignore me")
     check("comment ignored, parser alive", lambda: still_alive(""))
     link.send("", raw=b"\x00\xff,,,garbage,,,\n")

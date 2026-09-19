@@ -46,7 +46,7 @@ static const uint32_t HALT_SETTLE_MS  = 20000UL;
 /* Runtime-settable (section 1.1). Defaults are the section 6 values, so a
  * firmware that has never been SET behaves exactly as the brief describes. */
 static const int32_t  DORMANCY_DEFAULT   = 30000;
-static const uint16_t PERSIST_DEFAULT    = 40;
+static const uint16_t PERSIST_DEFAULT    = 10;   /* 40 until Sep 18: rejected real LDR flashes */
 static const uint16_t REFRACTORY_DEFAULT = 500;
 
 static const int32_t  DORMANCY_MAX   = 3600000L;
@@ -275,7 +275,7 @@ static bool confirmTrigger(uint16_t *peak_out, uint32_t *duration_out) {
   uint32_t t0 = millis();
   uint16_t peak = 0;
   while ((uint32_t)(millis() - t0) < g_persist_ms) {
-    if (!triggerAsserted()) return false;
+    if (!triggerAsserted()) { *duration_out = millis() - t0; return false; }
     uint16_t v = analogRead(PIN_PEAK_ADC);
     if (v > peak) peak = v;
   }
@@ -413,7 +413,10 @@ void loop() {
       g_wait_release     = true;
     } else {
       /* Did not persist: flicker, rejected. This is Tier 1's false-positive
-       * rate being measured, not an error. */
+       * rate being measured, not an error. Logged so the rig shows it. */
+      char out[32];
+      snprintf(out, sizeof(out), "# t2: noise %lu ms", (unsigned long)dur);
+      sendLine(out);
     }
   }
 
