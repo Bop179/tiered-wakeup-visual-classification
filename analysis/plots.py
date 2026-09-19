@@ -181,9 +181,11 @@ def fig_trace(run_dir: Path, C, args, plt):
     ax.plot(rel, w, color=C["series"][0], linewidth=1.0)
 
     boots = summary.get("boot_windows_t")
-    if boots is None:  # summary predates boot_windows_t: fall back to the level method
-        levels = [lv["watts"] for lv in ea.find_levels(t, w, min_dwell_s=args.min_dwell_s)]
-        boots, _ = ea.find_boot_windows(t, w, levels, args.min_boot_s)
+    if boots is None:  # missing/old summary: use the analyser's state rules
+        summary = ea.analyse_run(run_dir, argparse.Namespace(
+            smooth_s=1.0, clapperboard=2.0, min_dwell_s=args.min_dwell_s,
+            min_boot_s=args.min_boot_s, boot_cycle=False))
+        boots = summary["boot_windows_t"]
     for k, (b0, b1) in enumerate(boots):
         ax.axvspan(b0 - t0, b1 - t0, color=C["series"][1], alpha=0.16, zorder=0,
                    label="boot" if k == 0 else None)

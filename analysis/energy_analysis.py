@@ -44,6 +44,9 @@ So states are found by DWELL (a state is a level the trace rests at for seconds;
 an inference spike lasts ~100 ms and no occupancy threshold can separate the two
 once there are enough events), and boots are found by TRANSITION (a boot is the
 state entered on leaving halted, and it ends when that state is left in turn).
+Verified dormancy -1 rules out automatic halt/boot states even when awake
+workloads create multiple sustained levels. The requested setting alone does
+not prove that the firmware accepted it.
 Both are verified against tools/make_synthetic_run.py, whose ground truth is
 known -- see check_synthetic.
 
@@ -427,14 +430,16 @@ def analyse_run(run_dir: Path, args) -> dict:
     # Windows come off the RAW trace: smoothing ramps the halt->boot edge through
     # the idle level, so the level "entered on leaving halt" reads as idle for a
     # few hundred ms and the window is lost.
-    boots, boot_level = find_boot_windows(t, w, watts, args.min_boot_s)
-    p_halt = watts[0] if len(watts) >= 2 else None
+    never_halt = manifest.get("dormancy_ms_verified") == -1
+    boots, boot_level = ([], None) if never_halt else find_boot_windows(
+        t, w, watts, args.min_boot_s)
+    p_halt = watts[0] if len(watts) >= 2 and not never_halt else None
     p_boot_level = watts[boot_level] if boot_level is not None else None
 
     # Idle is whatever stable state is left once halted and boot are named. In a
     # dormancy=0 run there is none, and saying so is the honest answer.
     others = [lv for i, lv in enumerate(levels)
-              if not (len(watts) >= 2 and i == 0) and i != boot_level]
+              if not (p_halt is not None and i == 0) and i != boot_level]
     p_idle = max(others, key=lambda d: d["occupancy"])["watts"] if others else None
 
     out["halted_state_present"] = p_halt is not None
@@ -443,7 +448,10 @@ def analyse_run(run_dir: Path, args) -> dict:
     out["p_idle_est_W"] = p_idle
     out["p_boot_level_W"] = p_boot_level
     notes = []
-    if p_halt is None:
+    if never_halt:
+        notes.append("dormancy -1 verified -- awake power variations are not "
+                     "halted or boot states")
+    elif p_halt is None:
         notes.append("no halted state -- the Pi never halted in this run")
     if p_idle is None:
         notes.append("no idle plateau -- the Pi halted immediately after every "
@@ -451,10 +459,11 @@ def analyse_run(run_dir: Path, args) -> dict:
     if notes:
         out["note_levels"] = "; ".join(notes)
 
-    split = ((p_halt + p_idle) / 2 if (p_halt is not None and p_idle is not None)
-             else (min(w) + max(w)) / 2)
+    split = (None if p_halt is None else
+             (p_halt + p_idle) / 2 if p_idle is not None else (min(w) + max(w)) / 2)
     out["state_split_W"] = split
-    out["frac_time_low_state"] = sum(1 for v in w if v <= split) / len(w)
+    out["frac_time_low_state"] = (sum(1 for v in w if v <= split) / len(w)
+                                  if split is not None else None)
 
     # ---------------------------------------------------------- clapperboard
     t_pi = None
@@ -594,10 +603,11 @@ def report(out: dict) -> None:
 
     def lvl(x):
         return "n/a" if x is None else f"{x:.3f} W"
+    low = out.get("frac_time_low_state")
     print(f"  P_halt {lvl(out.get('p_halt_est_W')):<10} "
           f"P_idle {lvl(out.get('p_idle_est_W')):<10} "
-          f"boot level {lvl(out.get('p_boot_level_W')):<10} "
-          f"({100 * out['frac_time_low_state']:.0f}% low)")
+          f"boot level {lvl(out.get('p_boot_level_W')):<10}"
+          + (f" ({100 * low:.0f}% low)" if low is not None else ""))
     if out.get("note_levels"):
         print(f"  note: {out['note_levels']}")
 
