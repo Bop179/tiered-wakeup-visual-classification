@@ -214,9 +214,23 @@ repeated, so there is no run-to-run variance estimate anywhere in this report.
 warns that results after a miss may be misattributed. Its 0.075 end-to-end figure should be treated
 as indicative only. The other nine cells fitted the clock per sleep epoch.
 
-**No ROC, so no defensible operating point.** The Tier 1 threshold was bracketed by hand, not chosen
-from a sensitivity/false-trigger curve. The report cannot claim the trigger sits at a justified point
-on a ROC, because the sweep was cut with the rest of Sep 13–17.
+**Three threshold points, not a ROC.** The Tier 1 threshold was bracketed by hand, not chosen from a
+sensitivity/false-trigger curve; the sweep was cut with the rest of Sep 13–17. Sep 19 added three
+measured points at fixed stimulus (§4 of `docs/trigger_characterization.md`), which is enough to
+bracket the knob but not to justify an operating point on a curve. The one substantive finding there:
+at a deliberately over-sensitive threshold the comparator tripped 94 times in two minutes on a static
+screen and Tier 2's 10 ms persistence filter discarded **all 94** while still passing every real
+flash — a miscalibrated Tier 1 produced zero spurious wakes.
+
+**No positive control for the boot-timing result.** The central claim of §4.1 is that the Pi finishes
+booting after the stimulus is gone. Every run supporting it used a stimulus shorter than `T_boot`, so
+the claim rests entirely on failures. Across all 386 scored events, **2 of 145 post-boot events were
+ever classified correctly** (five further apparent successes are `idx0` artifacts — `boots.csv` logs
+the daemon's own start as a boot epoch, so the first event of every run reads `booted`, and it is
+always the banana target at 0.999). No run was made with a stimulus longer than the boot, which is
+the experiment that would show the cascade completing normally and isolate timing as the cause. The
+result should be read as "accuracy collapses when the stimulus expires during the boot," not as
+"the cascade cannot classify after a wake" — the latter was never tested.
 
 ### Reproducing the figures
 

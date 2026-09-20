@@ -175,6 +175,11 @@ tools/trigger_patch.py sweep --trimmer 2.5 --serial /dev/cu.usbmodem1101
 The halted Pi still draws 2.0 W (1.27 W without the case fans) because `WAKE_ON_GPIO=1` requires `POWER_OFF_ON_HALT=0`; that caps
 achievable savings and it is an architectural constraint, not a measurement error. Results are
 reported **both** as measured end-to-end savings **and** as projected savings for a truly
-power-gated Tier 3, clearly labeled. Board-level Tier 2 sleep current is ~20 mA regardless of
-firmware because the Uno's power LED and USB-serial chip cannot be disabled in software; the
-ATmega's own current is reported separately and the distinction is stated.
+power-gated Tier 3, clearly labeled. Tier 2 was metered Sep 19: the Uno board with Tier 1 on its
+5 V pin draws **16.77 mA (89 mW) in power-down sleep and 31.24 mA (167 mW) awake**, the sleep step
+visible on the meter 52 s after power-up where the firmware's dormancy timer puts it. The floor is
+the Uno's power LED and USB-serial chip, which cannot be disabled in software, so **every Tier 2
+figure is whole-board**; isolating the ATmega needs a trace cut this board has not had. Weighted by
+each cell's halted fraction, Tiers 1+2 cost ~0.11 W against Pi-rail savings of 0.21–0.73 W — the
+cascade is net-positive at every cell measured, but it is ~61% of the saving in the worst
+configuration, so it is not free and the report does not imply it is.

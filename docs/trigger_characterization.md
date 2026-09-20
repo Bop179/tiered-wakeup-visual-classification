@@ -29,7 +29,7 @@ your own words — that section carries more weight in the write-up than the tab
 | Low-pass R / C | 33 kΩ / 0.1 µF | f_c ≈ 48 Hz | single pole; no second pole fitted |
 | Comparator | LM339N | pull-up 10 kΩ | |
 | Hysteresis R | | **~100–220 kΩ** | OUTSTANDING — exact value not recorded. Brief specified 1 MΩ. |
-| Threshold trimmer | 3386P | **OUTSTANDING** — wiper voltage never metered | See §4. |
+| Threshold trimmer | 3386P | **deliberately not metered** | See §4. Decided Sep 19: the absolute wiper voltage is a function of ambient light and the LDR divider, so it does not transfer to another room and is not worth recording as a design constant. The trimmer is a calibration knob, not a spec. |
 
 **OUTSTANDING for the Tier 2 owner:** confirm the op-amp topology (inverting or non-inverting), read the actual
 hysteresis resistor off the board, and meter the threshold wiper to the millivolt.
@@ -68,10 +68,33 @@ against 40 real ones, which is the right order to keep in mind when reading dete
 > there is no artifact in `data/` behind this row — it is an observation at the rig on the evening of
 > Sep 18. Re-run it with `| tee` if the write-up needs a citable number.
 
-## 4. Threshold × contrast sweep — NOT RUN
+## 4. Threshold sensitivity — three points, not a curve
 
-**No ROC was measured.** `data/tier1_roc.csv` does not exist, and `analysis/plots.py` skips the ROC
-figure accordingly ("roc: not enough data yet").
+**No ROC sweep was run.** `data/tier1_roc.csv` does not exist, and `analysis/plots.py` skips the ROC
+figure accordingly ("roc: not enough data yet"). What exists instead is a **three-point threshold
+comparison** measured Sep 19 for the video's Demo B, at a fixed stimulus (4 real flashes at contrast
+0.8 plus low-contrast flicker bait) with `PERSIST` held at 10 ms and capture disabled:
+
+| Trimmer | Comparator blips rejected | Real flashes detected | False wakes |
+|---|---|---|---|
+| as run overnight | 2, at 4 ms | **4 / 4** | 0 |
+| toward threshold (sensitive) | **94, at 0–1 ms** | **4 / 4** | **0** |
+| away from threshold (insensitive) | 0 — LED never lights | **0 / 4** | 0 |
+
+Raw: `data/demoB/{normal,sens,lowsens}.{csv,log}` with matching `gen_*.csv` stimulus records for the
+first two. The low-sensitivity take has no stimulus record — it was shot before `-o` was added to the
+stimulus command — so its "0 detected" rests on the video, not on a logged count of what was shown.
+
+**The result worth keeping: Tier 2's persistence filter absorbs a badly miscalibrated Tier 1.** At
+the sensitive setting the comparator tripped 94 times in two minutes on a static screen, every blip
+under a millisecond, and `PERSIST 10 ms` discarded all 94 while still passing all four real flashes.
+A wrong analog threshold did not produce a single spurious wake. The failure mode the design is
+actually exposed to is the opposite one, and it has bitten us: `PERSIST` shipped at 40 ms and was
+silently rejecting real LDR flashes until Sep 18.
+
+**This is three points, not a sensitivity curve**, and the threshold between them was set by hand
+(bracket where the comparator turns on, bracket where it turns off, sit in the middle). The write-up
+must not claim an operating point chosen from a ROC.
 
 The sweep needed ~20 minutes per trimmer position across ≥ 6 positions, about two hours with the
 monitor and rig in their locked measurement state. The Pi was down Sep 13–17 with a loose camera
