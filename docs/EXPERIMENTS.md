@@ -316,6 +316,9 @@ distribution, not just the mean — the halted case's variance is the boot-time 
 | `20260919T171922Z_i45_d15000_t60000_c0.8_int8_overnight` | 20260919 | | 60000 | 45 s | 15000 | 0.8 | int8 | 40 | | |  |
 | `20260919T180457Z_i120_d15000_t30000_c0.8_int8_overnight` | 20260919 | | 30000 | 120 s | 15000 | 0.8 | int8 | 40 | | |  |
 | `20260919T194830Z_i120_d15000_t-1_c0.8_int8_overnight` | 20260919 | | -1 | 120 s | 15000 | 0.8 | int8 | 40 | | |  |
+| `20260920T010043Z_i60_d15000_t15000_c0.8_int8_demoA` | 20260920 | | 15000 | 60 s | 15000 | 0.8 | int8 | 3 | | | Demo A cascade take, one continuous shot |
+| `20260920T012133Z_i30_d15000_t-1_c0.8_int8_beat1` | 20260920 | | -1 | 30 s | 15000 | 0.8 | int8 | 2 | | | awake path, 42 ms, with t2rx logging |
+| `20260920T012503Z_i60_d15000_t15000_c0.8_int8_demoA2` | 20260920 | | 15000 | 60 s | 15000 | 0.8 | int8 | 2 | | | beats 2+3: halt step then boot into expired stimulus |
 
 ---
 
