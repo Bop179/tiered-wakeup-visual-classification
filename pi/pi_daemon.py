@@ -423,7 +423,13 @@ class Daemon:
                 time.sleep(0.002)
                 continue
             line = line.strip()
-            if not line or line.startswith("#"):
+            if not line:
+                continue
+            if line.startswith("#"):
+                # Tier 2's own diagnostics ("# t2: no ACK -- assuming halted",
+                # "# t2: boot timeout"). Dropping these is why the overnight
+                # post-boot misses could not be explained from the logs.
+                print(f"# t2rx {line}", flush=True)
                 continue
             parts = line.split(",")
             tag = parts[0]
