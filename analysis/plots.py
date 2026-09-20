@@ -113,7 +113,7 @@ def fig_pareto(runs, C, args, plt):
     if not groups:
         return None
     p = constants(args.constants)
-    duration_s = (runs[0].get("params", {}).get("duration_ms") or 15000) / 1000.0
+    duration_s = (runs[0].get("params", {}).get("duration_ms") or 25000) / 1000.0
 
     fig, ax = plt.subplots(figsize=(7.2, 5.0))
     for i, (interval, rs) in enumerate(groups.items()):

@@ -12,7 +12,7 @@
 # the experiment measures.
 #
 # current_run.env is shell syntax, values quoted:
-#     RUN_ID=20260914T101500Z_i10_d15000_t15000_c0.8_int8
+#     RUN_ID=20260914T101500Z_i10_d25000_t15000_c0.8_int8
 #     MODEL=int8
 #     TARGET_CLASS=banana
 #     DORMANCY_MS=15000          # optional; empty = do not SET

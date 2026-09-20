@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Monitor-driven stimulus generator -- the event source for the whole benchmark.
 
-    tools/event_display.py --n-events 40 --mean-interval 45 --duration-ms 15000 \
+    tools/event_display.py --n-events 40 --mean-interval 45 --duration-ms 25000 \
                            --contrast 0.8 --out data/<run_id>/gen.csv
 
 Displays, full screen on a monitor the rig watches:
@@ -293,8 +293,8 @@ def main() -> int:
     ap.add_argument("--dwell-dist", choices=["exponential", "fixed"],
                     default="exponential",
                     help="exponential unless you are sanity-checking timing")
-    ap.add_argument("--duration-ms", type=int, default=15000,
-                    help="how long each image is held")
+    ap.add_argument("--duration-ms", type=int, default=25000,
+                    help="how long each image is held (default: 25000 ms / 25 s)")
     ap.add_argument("--contrast", type=float, default=0.8,
                     help="trigger-patch luminance, 0..1")
     ap.add_argument("--flicker-rate", type=float, default=0.0,

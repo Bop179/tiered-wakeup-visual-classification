@@ -23,7 +23,7 @@ A synthetic run committed on purpose, from:
 
 ```bash
 tools/make_synthetic_run.py -o data/sample --n-events 5 --mean-interval 22 \
-                            --dormancy 12 --duration-ms 15000
+                            --dormancy 12 --duration-ms 25000
 ```
 
 It is **not data**. Nothing in it was measured. It exists so that:
@@ -45,5 +45,39 @@ add them to a real run's manifest.**
 ## Rules
 
 - A run without a `manifest.json` is a run that did not happen. Do not hand-assemble one later.
-- Do not edit a CSV after a run. If a run is bad, note why in `docs/EXPERIMENTS.md` and re-run it.
+- Preserve machine CSVs after a run. For an owner-confirmed manual correction, retain the
+  original and record the reviewed observations separately with their source; otherwise
+  note bad runs in `docs/EXPERIMENTS.md` and re-run them.
 - Confirm the clapperboard step is visible in `power.csv` before trusting any run's alignment.
+
+## Sep 19 overnight manual review
+
+`overnight_manual_review.csv` contains 400 observations from the owner's review of a
+separate-device recording, confirmed Sep 20. The owner confirmed that an LLM formatter
+incorrectly named the observation fields `simulated_*` and labeled the rows synthetic.
+They are now `reviewed_class_id` and `reviewed_correct`; the original CSV, including its
+formatter metadata, is preserved in `manual_review_originals/overnight_manual_review.csv.original`.
+
+Each of the ten runs has an authoritative classification log, `reviewed_events.csv`.
+`analysis/accuracy.py` automatically uses it to regenerate `accuracy.json`; the old
+machine-derived accuracy is retained as `logged_accuracy`. Row references are one-based
+CSV data-row positions, not device event indices. All 400 stimuli and 327 linked results
+were checked against the original logs. There are 27 additional reviewed outcomes with
+no matched result row. A blank result reference with class `-1` remains unanswered;
+a linked `-1` is an abstention.
+
+The owner subsequently confirmed that stimulus rows 1 and 40 in every cell were
+incorrectly classified, but could not recover their predicted labels. These 20 entries
+use `reviewed_class_id=unknown` and `reviewed_correct=0`; no class was invented. This
+includes two previously unanswered entries, increasing outcomes without a matched result
+from 25 to 27. The total is now 189/400 (47.25%). The preceding correction is preserved
+under `manual_review_originals/before_endpoint_correction/`.
+
+Machine `events.csv`, timing, confidence, firing, power and energy summaries remain
+recorded telemetry. The review supplies no replacements for those quantities. Raw top-1,
+capture loss and confidence-threshold loss are unavailable for the reviewed outcomes.
+Accuracy denominators use reviewed outcomes; detection and inference counts remain
+explicitly based on the machine logs. Batch logs include correction notices, and run
+manifests identify the review and its source hash. Prior accuracy reports, manifests,
+machine event/daemon logs, energy summaries and batch logs are backed up with `.original`
+suffixes under `manual_review_originals/`, so analysis discovery does not count them twice.

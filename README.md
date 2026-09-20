@@ -66,6 +66,9 @@ without them) — see `docs/REPORT.md` §1. The plan's estimates were 2.5 W, 0.5
 A script on a Mac drives a monitor the rig watches, which supplies both exact ground truth and a
 controllable event rate.
 
+Each stimulus is held for **25 seconds (25000 ms)** by default. The experiment runner,
+standalone display, overnight matrix, and analysis defaults use the same duration.
+
 ```
 black dwell (length sets the event rate)
   └─ flash: trigger patch + ImageNet image, held for the event duration

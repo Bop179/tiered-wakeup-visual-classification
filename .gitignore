@@ -53,3 +53,6 @@ tools/gen.csv
 # Proposal is an application artifact, not a project artifact
 *Proposal*
 overnight_stop
+
+# Same stray again when event_display.py runs from the repo root
+/gen.csv

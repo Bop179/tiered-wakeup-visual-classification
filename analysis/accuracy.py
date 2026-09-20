@@ -318,12 +318,80 @@ def score(gen, evts, ref, assign, method, args) -> dict:
 
 # ---------------------------------------------------------------------- report
 
+def apply_manual_review(out, run_dir, gen, ref, args):
+    """Use reviewed stimulus outcomes; retain machine telemetry separately."""
+    path = run_dir / "reviewed_events.csv"
+    if not path.exists():
+        return
+    rows = read_csv(path)
+    real = {i for i, g in enumerate(gen) if not g["bait"]}
+    reviewed, linked = {}, set()
+    events = read_csv(run_dir / "events.csv")
+    for r in rows:
+        i = int(r["stimulus_row"]) - 1
+        if r["run_id"] != run_dir.name or i not in real or i in reviewed:
+            raise ValueError(f"{path}: invalid or duplicate stimulus {i + 1}")
+        g = gen[i]
+        cls = None if r["reviewed_class_id"] == "unknown" else int(r["reviewed_class_id"])
+        if (r["image_id"] != g["image_id"] or int(r["true_class_id"]) != g["true_id"]
+                or (cls is not None and not -1 <= cls <= 1000)
+                or int(r["reviewed_correct"]) != int(cls == g["true_id"])):
+            raise ValueError(f"{path}: inconsistent review for stimulus {i + 1}")
+        if r["result_row"]:
+            j = int(r["result_row"]) - 1
+            if j in linked or not 0 <= j < len(events):
+                raise ValueError(f"{path}: invalid or duplicate result row")
+            linked.add(j)
+        reviewed[i] = r
+    if set(reviewed) != real:
+        raise ValueError(f"{path}: review must cover every real stimulus")
+    observed = {i for i, r in reviewed.items()
+                if r["result_row"] or r["reviewed_class_id"] == "unknown"
+                or int(r["reviewed_class_id"]) >= 0}
+    known = [i for i in real if gen[i]["true_id"] >= 0 and gen[i]["image_id"] in ref]
+    detected = [i for i in known if i in observed]
+    correct = sum(int(reviewed[i]["reviewed_correct"]) for i in known)
+    ceiling = {i: ref[gen[i]["image_id"]]["pred"] == gen[i]["true_id"] for i in known}
+    ceil_all, ceil_det = sum(ceiling.values()), sum(ceiling[i] for i in detected)
+    out["manual_review"] = {
+        "source": path.name, "data_origin": "manual review of separate-device recording",
+        "n_reviewed": len(rows), "n_observed_outcomes": len(observed),
+        "n_outcomes_without_logged_result": len(observed) - len(linked),
+        "n_incorrect_class_unknown": sum(r["reviewed_class_id"] == "unknown" for r in rows),
+        "note": "Accuracy uses reviewed classes. Detection, timing, firing, power and "
+                "inference counts remain machine-log measurements. An unmapped -1 is "
+                "an unanswered stimulus; a mapped -1 is an abstention. The class marker "
+                "unknown means an observed incorrect classification with its label unknown. Raw top-1 and "
+                "confidence were not reviewed.",
+    }
+    out["logged_accuracy"] = out["accuracy"]
+    if not known:
+        return
+    out["accuracy"] = {
+        "n_scored": len(known), "n_not_in_reference": len(real) - len(known),
+        "n_camera_scored": len(detected), "conf_threshold": args.conf_threshold,
+        "camera_top1": _frac(correct, len(detected)), "camera_top1_raw": None,
+        "ceiling_top1_same_images": _frac(ceil_det, len(detected)),
+        "ceiling_top1_thresholded_same_images": _frac(sum(
+            ceiling[i] and ref[gen[i]["image_id"]]["conf"] >= args.conf_threshold
+            for i in detected), len(detected)),
+        "capture_loss": None, "threshold_loss": None,
+        "end_to_end_top1": correct / len(known),
+        "ceiling_top1_all_events": ceil_all / len(known),
+        "accuracy_lost_total": (ceil_all - correct) / len(known),
+        "lost_to_misses": (ceil_all - ceil_det) / len(known),
+        "lost_on_detected": (ceil_det - correct) / len(known),
+    }
+
 def _pct(x) -> str:
     return "  n/a" if x is None else f"{100 * x:5.1f}%"
 
 
 def report(name: str, o: dict) -> None:
     print(f"\n{name}")
+    if o.get("manual_review"):
+        print(f"  review        {o['manual_review']['source']}: "
+              "accuracy supersedes machine scoring; other metrics remain logged")
     print(f"  pairing       {o['method']}")
     print(f"  events        {o['n_real']} real: {o['n_detected']} answered, "
           f"{o['n_missed']} missed   detection {_pct(o['detection_rate'])}")
@@ -334,7 +402,8 @@ def report(name: str, o: dict) -> None:
     if a:
         print(f"  accuracy      camera top-1 {_pct(a['camera_top1'])} "
               f"(raw {_pct(a['camera_top1_raw'])}) vs ceiling "
-              f"{_pct(a['ceiling_top1_same_images'])} on the same {o['n_detected']} images")
+              f"{_pct(a['ceiling_top1_same_images'])} on the same "
+              f"{a.get('n_camera_scored', o['n_detected'])} images")
         print(f"                capture loss {_pct(a['capture_loss'])}, "
               f"confidence-threshold loss {_pct(a['threshold_loss'])}")
         print(f"  end to end    {_pct(a['end_to_end_top1'])} of {a['n_scored']} events right "
@@ -389,6 +458,8 @@ def self_test(args) -> int:
             gaps[spurious_after + 1] = max(gaps[spurious_after + 1], 15.0)
         gen, onset, gi, t = [], [], [], t0
         for i, (img, r) in enumerate(sel):
+            # Pairing fixture allows overlapping stimuli; preserve its onset
+            # spacing independently of the 25 s image duration.
             t += gaps[i] + (15.0 if i else 0.0)
             if i == bait_before:
                 gen.append({"t": t - 6.0, "image_id": "NONE", "true_id": -1,
@@ -396,7 +467,7 @@ def self_test(args) -> int:
             gi.append(len(gen))
             onset.append(t)
             gen.append({"t": t, "image_id": img, "true_id": r["true"],
-                        "target": r["true"] == 955, "duration_s": 15.0, "bait": False})
+                        "target": r["true"] == 955, "duration_s": 25.0, "bait": False})
         res, shift = [], 0.0
         for i, (img, r) in enumerate(sel):
             if i in misses or (overwrite and i == overwrite[0]):
@@ -452,6 +523,40 @@ def self_test(args) -> int:
           a["capture_loss"] == 0 and a["camera_top1_raw"] == a["ceiling_top1_same_images"],
           f"camera raw {_pct(a['camera_top1_raw'])} == ceiling {_pct(a['ceiling_top1_same_images'])}")
 
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        fields = ["run_id", "stimulus_row", "image_id", "true_class_id", "result_row",
+                  "reviewed_class_id", "reviewed_correct"]
+        rows = [{"run_id": d.name, "stimulus_row": i + 1, "image_id": g["image_id"],
+                 "true_class_id": g["true_id"], "result_row": i + 1 if i else "",
+                 "reviewed_class_id": "unknown" if i == 0 else (-1 if i == 1 else g["true_id"]),
+                 "reviewed_correct": int(i not in (0, 1))} for i, g in enumerate(g2)]
+        # Only the row count is read from machine events when validating links.
+        (d / "events.csv").write_text("event_idx\n" + "\n".join(map(str, range(len(e2)))) + "\n")
+        def write_review():
+            with (d / "reviewed_events.csv").open("w", newline="") as fh:
+                w = csv.DictWriter(fh, fieldnames=fields)
+                w.writeheader()
+                w.writerows(rows)
+        write_review()
+        reviewed_out = dict(o)
+        apply_manual_review(reviewed_out, d, g2, ref, args)
+        check("manual review: unknown wrong label and abstention scored, telemetry preserved",
+              reviewed_out["accuracy"]["end_to_end_top1"] == (len(g2) - 2) / len(g2)
+              and reviewed_out["accuracy"]["camera_top1_raw"] is None
+              and reviewed_out["logged_accuracy"] == o["accuracy"]
+              and reviewed_out["n_inferences"] == o["n_inferences"]
+              and reviewed_out["manual_review"]["n_outcomes_without_logged_result"] == 1
+              and reviewed_out["manual_review"]["n_incorrect_class_unknown"] == 1)
+        rows[-1] = rows[0]
+        write_review()
+        try:
+            apply_manual_review(dict(o), d, g2, ref, args)
+        except ValueError:
+            check("manual review: duplicate stimulus rejected", True)
+        else:
+            check("manual review: duplicate stimulus rejected", False)
+
     # B: misses, a boot that swallows one event and forwards the next, flicker bait,
     # a trigger on nothing, and a Pi clock that jumps 100 s after the boot.
     for at_send in (True, False):
@@ -490,7 +595,7 @@ def self_test(args) -> int:
         if booted:
             ard_off -= rng.uniform(40.0, 200.0)
         gen.append({"t": t, "image_id": img, "true_id": r["true"],
-                    "target": r["true"] == 955, "duration_s": 15.0, "bait": False})
+                    "target": r["true"] == 955, "duration_s": 25.0, "bait": False})
         if i == 25:
             continue
         cls = r["pred"] if r["conf"] >= args.conf_threshold else -1
@@ -549,6 +654,7 @@ def main() -> int:
             continue
         assign, method = pair(gen, evts, manifest, args.boot_window)
         out = score(gen, evts, ref, assign, method, args)
+        apply_manual_review(out, run, gen, ref, args)
         out["run_id"] = run.name
         report(run.name, out)
         if not args.no_write:

@@ -3,6 +3,12 @@
 Draft for the Sep 19 write-up. Every number names its run. §1 and §2 are final; §3 is
 pre-registered before the overnight matrix (Sep 18) and gets its measured column afterwards.
 
+**Current stimulus duration: 25 s (25000 ms).** This exceeds the measured 20.8 s boot
+by about 4.2 s. Sections 3–6 and the existing figures describe completed runs recorded
+with the previous duration; their run IDs and measurements are retained as historical
+evidence. They are not measurements of the corrected 25 s configuration. Re-run the
+matrix before reporting its power, detection, or accuracy results at 25 s.
+
 ## 1. What the Pi costs in each state
 
 Pi 4 Rev 1.5, FNB58 in line at 100 Hz, `throttled=0x0` throughout. Case fans on (see 1.3).
@@ -65,12 +71,12 @@ first-order `E_boot/(P_idle − P_halt)` (54 s) both charge a boot as if it disp
 *halted* time. It displaces *idle* time, because the events it swallows would have kept
 the Pi awake anyway.
 
-**The cost is paid in detection, not energy.** With a 20.8 s boot and 15 s events, a Pi
-that is halted when an event arrives can't see it. So the dormancy timeout is not an
-energy optimisation: power is monotone in the timeout, and every second of it buys
-detection rate at a fixed exchange rate, the Pareto slope `K`.
+**The cost is paid in detection, not energy.** With a 20.8 s boot and 25 s events,
+the wake-triggering image should still be visible when the Pi becomes ready. Events
+arriving during a boot can still be missed. The model must use `--duration 25` for
+the current configuration; the historical short-stimulus predictions below do not apply.
 
-## 3. Pre-registered predictions for the overnight matrix
+## 3. Historical pre-registered predictions for the overnight matrix
 
 Registered Sep 18 before the run. Event duration 15 s (≈ 0.7·`T_boot`), exponential
 arrivals, 40 events per cell, `tools/overnight.sh`. The model depends on the duration only
@@ -106,7 +112,7 @@ one of the model's assumptions is wrong, and which one it is becomes the result.
 With 40 events, a detection rate carries about ±0.08 of binomial noise at p≈0.5, so treat
 single-cell deviations smaller than that as agreement.
 
-## 4. Checking the predictions
+## 4. Checking the historical predictions
 
 **The Pareto front is straight, and its slope is the predicted `K`.** Fitting a line to the
 (awake-detection, measured power) points at each interval:
@@ -138,27 +144,39 @@ No crossover was observed, as predicted.
 The model reasons about *detection* — was the Pi awake to see the event. It has no notion of whether
 the event was **still there** once the Pi finished booting. It is:
 
-**`T_boot` (20.8 s) is longer than an image is shown (15 s).** A Pi woken by an event finishes
-booting after the image it was woken for has already left the screen, and photographs a blank
-monitor. The event counts as detected, answered, and classified — wrongly.
+**`T_boot` (20.8 s) is longer than an image is shown (15 s).** This creates a potential blind
+window, but timing alone does not establish which image was captured or its classification.
+The table below covers all 400 overnight stimuli. The first and final classification in
+each cell was incorrect; its predicted label is unknown. Source details and correction
+history are documented in [data/README.md](../data/README.md#sep-19-overnight-manual-review).
 
 | Cells | End-to-end top-1 | Against a 0.700 ceiling |
 |---|---|---|
-| never-halt (3 cells) | 0.525, 0.550, 0.550 | 75–79% of ceiling |
-| halting (7 cells) | 0.025 – 0.400 | 4–57% of ceiling |
+| never-halt (3 cells) | 0.500, 0.475, 0.525 | 68–75% of ceiling |
+| halting (7 cells) | 0.375 – 0.575 | 54–82% of ceiling |
 
-Among the halting cells the ordering is monotone in how *little* they halt: 60 s dormancy keeps
-0.275–0.400, 15 s dormancy collapses to 0.025–0.125. This is not classifier noise. It is the boot
-time and the stimulus duration interacting, and it is the most important result of the project:
+| Mean interval | Dormancy | Correct / shown | End-to-end top-1 |
+|---|---|---|---|
+| 20 s | 30 s | 17 / 40 | 0.425 |
+| 20 s | never | 20 / 40 | 0.500 |
+| 45 s | 30 s | 15 / 40 | 0.375 |
+| 45 s | never | 19 / 40 | 0.475 |
+| 20 s | 15 s | 19 / 40 | 0.475 |
+| 45 s | 15 s | 23 / 40 | 0.575 |
+| 20 s | 60 s | 15 / 40 | 0.375 |
+| 45 s | 60 s | 21 / 40 | 0.525 |
+| 120 s | 30 s | 19 / 40 | 0.475 |
+| 120 s | never | 21 / 40 | 0.525 |
 
-> **Dormancy buys up to 27% of Pi-rail energy and costs up to 95% of end-to-end accuracy, because
-> the Pi finishes booting after the thing it woke for is gone.**
+The total is **189 / 400 (47.25%)**. Accuracy is not monotone in dormancy. There are 27
+classification outcomes without a matched machine result; their boot state, latency and
+confidence are unavailable. Raw top-1 and capture/threshold-loss decompositions are
+therefore unavailable for these results.
 
-A tiered wake-up system whose slow tier boots slower than its stimulus lasts does not have an energy
-/ accuracy trade-off worth making. The fix is not a better classifier; it is either a stimulus that
-persists past `T_boot`, or a Tier 3 that resumes in well under 20.8 s (suspend-to-RAM rather than
-halt), or a Tier 2 that buffers a frame for the Pi to classify on waking. None of the three was in
-scope for this build, and naming that is the honest conclusion.
+The measured Pi-rail energy saving remains up to 26.9%. Isolating the effect of boot timing
+requires a controlled comparison with a stimulus that persists past `T_boot`. The current
+25 s stimulus provides that configuration, but its effect on accuracy needs a new matrix run;
+the historical outcomes do not measure it.
 
 ## 5. The four numbers
 
@@ -169,7 +187,10 @@ Per the project question, measured across the 10 matrix cells.
 | **Energy saved** vs an always-on Pi (3.26 W idle) | **26.9%** (120 s / 30 s) | 8.1 – 26.9% |
 | **Inferences avoided** vs always-on at 1 fps | **99.4%** | 97.4 – 99.4% |
 | **Events missed** (not answered while awake) | 0.05 (120 s / never) | 0.05 – 0.875 |
-| **Accuracy lost** vs the 0.700 ceiling | 0.15 (never-halt) | 0.30 – 0.675 |
+| **Accuracy lost** vs the 0.700 ceiling | 0.125 (45 s / 15 s) | 0.125 – 0.325 |
+
+Events missed and inferences avoided use recorded machine telemetry. These counts have
+not been reconstructed for classification outcomes without matching machine rows.
 
 "Inferences avoided" is close to meaningless as a headline: an always-on 1 fps baseline is a straw
 man, since nothing in this system would ever run the classifier at 1 fps. The per-event baseline in
@@ -222,15 +243,11 @@ at a deliberately over-sensitive threshold the comparator tripped 94 times in tw
 screen and Tier 2's 10 ms persistence filter discarded **all 94** while still passing every real
 flash — a miscalibrated Tier 1 produced zero spurious wakes.
 
-**No positive control for the boot-timing result.** The central claim of §4.1 is that the Pi finishes
-booting after the stimulus is gone. Every run supporting it used a stimulus shorter than `T_boot`, so
-the claim rests entirely on failures. Across all 386 scored events, **2 of 145 post-boot events were
-ever classified correctly** (five further apparent successes are `idx0` artifacts — `boots.csv` logs
-the daemon's own start as a boot epoch, so the first event of every run reads `booted`, and it is
-always the banana target at 0.999). No run was made with a stimulus longer than the boot, which is
-the experiment that would show the cascade completing normally and isolate timing as the cause. The
-result should be read as "accuracy collapses when the stimulus expires during the boot," not as
-"the cascade cannot classify after a wake" — the latter was never tested.
+**No controlled longer-stimulus matrix for the boot-timing hypothesis.** The historical matrix
+used a stimulus shorter than `T_boot`. Its manually reviewed outcomes supersede the earlier
+machine-derived post-boot accuracy count. Some reviewed outcomes have no matched machine row,
+so a complete post-boot accuracy breakdown cannot be reconstructed from this review alone.
+A controlled longer-stimulus matrix is still needed to isolate timing as the cause of errors.
 
 ### Reproducing the figures
 

@@ -33,7 +33,7 @@ def main() -> int:
     ap.add_argument("--n-events", type=int, default=25)
     ap.add_argument("--mean-interval", type=float, default=45.0)
     ap.add_argument("--dormancy", type=float, default=30.0)
-    ap.add_argument("--duration-ms", type=int, default=15000)
+    ap.add_argument("--duration-ms", type=int, default=25000)
     ap.add_argument("--p-idle", type=float, default=2.5)
     ap.add_argument("--p-halt", type=float, default=0.5)
     ap.add_argument("--p-boot", type=float, default=3.5)

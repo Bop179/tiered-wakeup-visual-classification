@@ -325,8 +325,8 @@ def print_predictions(p: Params, duration_s: float, naive: bool) -> None:
           f"({'survives' if s else 'does NOT survive'} a {p.t_boot:g} s boot)")
     if s:
         print("  NOTE: at this duration every event that is not swallowed by a boot")
-        print("  is caught, so the tradeoff is weak. Pick a duration below T_boot")
-        print("  for the primary matrix -- around 0.5*T_boot.")
+        print("  is caught; events arriving during a boot can still be missed.")
+        print("  The primary matrix uses a 25 s stimulus.")
     print()
     header = f"  {'interval':>9} " + "".join(f"{fmt(t):>12}" for t in DORMANCIES)
     print(f"{'AVERAGE POWER (W)':>28}")
@@ -418,8 +418,8 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--measured", metavar="JSON",
                     help="measured constants, overriding the estimates")
-    ap.add_argument("--duration", type=float, default=15.0,
-                    help="event duration in seconds (default: 15, i.e. 0.5*T_boot)")
+    ap.add_argument("--duration", type=float, default=25.0,
+                    help="event duration in seconds (default: 25)")
     ap.add_argument("--pareto", action="store_true",
                     help="write the predicted Pareto front as CSV")
     ap.add_argument("-o", "--out", default="predicted_pareto.csv")

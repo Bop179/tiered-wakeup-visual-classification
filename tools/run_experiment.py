@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One command = one matrix cell. Run this, not the individual tools.
 
-    tools/run_experiment.py --mean-interval 45 --duration-ms 15000 \
+    tools/run_experiment.py --mean-interval 45 --duration-ms 25000 \
                             --dormancy-ms 30000 --contrast 0.8 --n-events 40
     tools/run_experiment.py --self-test       # end-of-run logic against a simulated Pi
 
@@ -434,7 +434,7 @@ def main() -> int:
     g = ap.add_argument_group("swept parameters")
     g.add_argument("--mean-interval", type=float, required=True,
                    help="mean black dwell, seconds -- sets the event rate")
-    g.add_argument("--duration-ms", type=int, default=15000)
+    g.add_argument("--duration-ms", type=int, default=25000)
     g.add_argument("--contrast", type=float, default=0.8)
     g.add_argument("--dormancy-ms", type=int, required=True,
                    help="SET on Tier 2 over serial at run start. -1 = never halt")

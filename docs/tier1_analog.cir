@@ -1,0 +1,117 @@
+* Tier 1 - analog change detector, corrected reference circuit
+* ===========================================================================
+* Companion to docs/TEAMMATE_BRIEF.md S1 (the ASCII schematic is there) and
+* docs/trigger_characterization.md (as-built values).
+*
+* LTspice:  File > Open > docs/tier1_analog.cir, then Run.
+* Self-contained - no symbol libraries. LM358/LM339 are behavioural, below.
+*
+* Chain: sensor -> high-pass 0.16 Hz -> gain x11 -> low-pass 48 Hz
+*        -> comparator + trimmer + hysteresis -> open-collector D2
+*
+* Nodes: VCC    5 V rail
+*        VREF   2.5 V mid-rail (R1/R2/C1)
+*        VPHOTO phototransistor emitter, idle ~1.5 V
+*        HP     high-pass output, biased to VREF
+*        FB     gain-stage feedback node = LM358 IN-   (NOT tied to VCC)
+*        GAIN   LM358 output
+*        A0     low-pass output -> Arduino A0 ("peak")
+*        VTH    trimmer wiper -> LM339 IN+
+*        D2     comparator output -> Arduino D2/INT0, LOW = event
+* ===========================================================================
+
+.param RHP   = 1Meg   ; high-pass R. 100k gives fc 1.6 Hz and 10x less bias
+                      ; offset, but droops 39% over a 50 ms flash (see below)
+.param IB    = 0      ; LM358 input bias current. Try 45n - see note at the end
+.param WIPER = 0.56   ; 3386P trimmer position -> VTH = 5*WIPER = 2.80 V
+.param ISIG  = 6u     ; flash photocurrent step (6u * 10k = 60 mV at the sensor)
+.param IFLK  = 2u     ; 120 Hz flicker bait     (2u * 10k = 20 mV pk)
+
+* ---- supply and 2.5 V mid-rail --------------------------------------------
+V1   VCC  0    5
+R1   VCC  VREF 10k
+R2   VREF 0    10k
+C1   VREF 0    10u        ; without this the "reference" moves with the signal
+C4   VCC  0    0.1u       ; decoupling: one per active device on the real board
+
+* ---- stage 1: photosensor --------------------------------------------------
+* 5V -> phototransistor -> 10k -> GND, modelled as photocurrent into the load
+* so the high-pass sees the real source impedance instead of an ideal source.
+Iph   VCC VPHOTO PULSE(150u {150u+ISIG} 100m 2m 2m 50m 200m)
+Iflk  VCC VPHOTO SIN(0 {IFLK} 120)
+Rload VPHOTO 0 10k
+
+* ---- stage 2: high-pass, fc = 1/(2*pi*1M*1u) = 0.16 Hz ---------------------
+C2 VPHOTO HP 1u
+R3 HP VREF {RHP}
+
+* ---- stage 3: gain x11, non-inverting, referenced to VREF ------------------
+XU1  HP FB VCC 0 GAIN LM358
+R5   GAIN FB 100k
+R4   FB VREF 10k
+
+* ---- stage 4: low-pass, fc = 1/(2*pi*33k*0.1u) = 48 Hz ---------------------
+R6 GAIN A0 33k
+C3 A0 0 0.1u
+
+* ---- stage 5: comparator ---------------------------------------------------
+* Signal to IN-, trimmer to IN+, so a light step drives D2 LOW (INT0 wake).
+XU2  VTH A0 0 D2 LM339
+Rpt  VCC VTH {10k*(1-WIPER)}   ; 3386P trimmer, 10k end to end
+Rpb  VTH 0   {10k*WIPER}
+R8   D2 VTH 1Meg               ; hysteresis: (2.5k||1M)*5V = ~12 mV
+R7   VCC D2 10k                ; pull-up - open collector cannot drive high
+* Debug LED (LED + 1k from VCC to D2) is on the board but left out of the sim:
+* it adds ~3 mA while asserted and changes nothing about the trigger.
+
+* ---- behavioural LM358: single supply, GBW 1 MHz, swings to VCC-1.5 --------
+.subckt LM358 inp inn vcc vee out
+Ibp 0 inp {IB}                 ; PNP inputs: bias current flows OUT of the pins
+Ibn 0 inn {IB}
+Eop n1 0 VALUE={LIMIT(1e5*V(inp,inn), V(vee)-1, V(vcc)+1)}
+Rp  n1 n2 1k
+Cp  n2 0  15.9u                ; 10 Hz pole x Avol 1e5 = 1 MHz GBW
+Eo  n3 0 VALUE={LIMIT(V(n2), V(vee)+0.02, V(vcc)-1.5)}
+Ro  n3 out 100
+.ends
+* Slew rate not modelled: 0.5 V/us crosses a 660 mV step in ~1.3 us, and the
+* 48 Hz low-pass (tau 3.3 ms) dominates the edge by three orders of magnitude.
+
+* ---- behavioural LM339: open collector, pulls low when IN- > IN+ -----------
+.subckt LM339 inp inn gnd out
+S1 out gnd inn inp SWMOD
+.model SWMOD SW(Ron=100 Roff=1G Vt=0 Vh=0.5m)
+.ends
+* Internal hysteresis is ~0 on purpose - all of it comes from R8, so the sim
+* proves the external network, not a model artefact. 1.3 us tPD not modelled.
+
+* ---- run + checks ----------------------------------------------------------
+.tran 0 0.6 0 100u
+
+.meas tran v_idle  FIND V(A0) AT 90m                ; expect ~2.50 V (ADC 512)
+.meas tran v_peak  MAX  V(A0) FROM 100m TO 160m     ; expect ~3.15 V (ADC 645)
+.meas tran v_flick PP   V(A0) FROM 220m TO 290m     ; quiet window, flicker only
+.meas tran v_thr   PARAM 5*WIPER
+.meas tran t_fire  WHEN V(D2)=2.5 CROSS=1           ; first falling edge
+.meas tran lat_ms  PARAM (t_fire-100m)*1000
+.meas tran t_fire2 WHEN V(D2)=2.5 CROSS=3           ; 2nd event, 200 ms later
+.meas tran v_base2 FIND V(A0) AT 295m               ; baseline it starts from
+
+* PASS: v_peak > v_thr > v_idle + v_flick/2, and BOTH t_fire and t_fire2 exist.
+*
+* t_fire2 is the re-arm check: does the second flash still fire after the first
+* one's tail? The tail is the droop the high-pass accumulates DURING the flash,
+* handed back at the falling edge - so a LONGER R3*C2 leaves a SMALLER tail,
+* not a larger one. 50 ms into tau=1 s droops 4.9% (tail 32 mV at the output);
+* tau=100 ms droops 39% (tail 260 mV). At the real 60 mV signal level both
+* re-arm well inside 200 ms, so neither explains the merged triggers in
+* trigger_characterization.md - that is the patch not returning to black, a DC
+* effect this stage is built not to see.
+* The middle term is the false-trigger margin. If it is thin, cascade a second
+* 33k/0.1u before touching WIPER - see TEAMMATE_BRIEF.md S1 stage 4.
+*
+* IB experiment: set IB=45n (LM358 typical). 45 nA through RHP=1Meg lifts HP by
+* 45 mV, x11 = ~0.5 V of output offset, and the idle no longer sits at 2.5 V.
+* RHP=100k cuts that to 50 mV and moves fc to 1.6 Hz. If your measured idle
+* really is ADC 512 with a 1 MOhm in there, check which part is in the socket.
+.end

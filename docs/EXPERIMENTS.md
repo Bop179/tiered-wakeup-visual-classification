@@ -208,15 +208,16 @@ last moment the trigger was seen asserted, so one EVT per assertion even with co
 
 The headline. **Do not cut this.**
 
-Sweep `dormancy_ms` × `event_rate`. Event duration is **fixed** at a value where an awake Pi always
-catches the event and a booting one sometimes does not — pick it from the measured `T_boot`, around
-`0.5·T_boot`. Produces a Pareto family, one curve per event rate.
+Sweep `dormancy_ms` × `event_rate`. Event duration is **fixed at 25 s (25000 ms)**,
+about 4.2 s longer than the measured `T_boot` of 20.8 s. A wake-triggering image should
+still be visible after boot; events arriving during a boot can still be missed.
+Produces a Pareto family, one curve per event rate.
 
 | Axis | Values |
 |---|---|
 | `dormancy_ms` | 0, 5 000, 15 000, 30 000, 60 000, ∞ (never halt) |
 | mean inter-event interval | 10 s, 20 s, 45 s, 120 s — **bracketing the predicted 15 s break-even** |
-| `duration_ms` | fixed, ≈ 0.5·`T_boot` |
+| `duration_ms` | fixed, 25000 (25 s) |
 | `contrast` | fixed, 0.8 |
 | events per cell | ≥ 40 |
 
@@ -234,7 +235,7 @@ catches the event and a booting one sometimes does not — pick it from the meas
 > comparable. Use `--dwell-dist exponential`. A single fixed-dwell cell is worth running as a
 > sanity check on timing, and no more.
 
-Estimated cost: 6 × 4 = 24 cells. At 40 events the 120 s column alone runs ~80 min per cell, so
+Estimated cost: 6 × 4 = 24 cells. At 40 events the 120 s column alone runs ~97 min per cell, so
 **schedule this across Sep 14–15 and run the 10 s and 20 s columns first** — they are the fastest,
 they bracket the predicted break-even, and they already show the sign flip in the Pareto slope.
 Drop to 25 events on the 120 s column if time runs short; note it in the log rather than
@@ -297,6 +298,9 @@ distribution, not just the mean — the halted case's variance is the boot-time 
 
 ## Run log
 
+Historical rows retain the durations and run IDs recorded at acquisition. New runs use
+the corrected **25000 ms (25 s)** default; earlier rows are not 25 s measurements.
+
 | Run ID | Date | Exp | dormancy_ms | mean interval | duration_ms | contrast | model | N | Detect % | Avg P (W) | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `20260918T190214Z_i20_d10000_t-1_c0.8_int8_harness` | 20260918 | | -1 | 20 s | 10000 | 0.8 | int8 | 6 | | |  |
@@ -319,6 +323,8 @@ distribution, not just the mean — the halted case's variance is the boot-time 
 | `20260920T010043Z_i60_d15000_t15000_c0.8_int8_demoA` | 20260920 | | 15000 | 60 s | 15000 | 0.8 | int8 | 3 | | | Demo A cascade take, one continuous shot |
 | `20260920T012133Z_i30_d15000_t-1_c0.8_int8_beat1` | 20260920 | | -1 | 30 s | 15000 | 0.8 | int8 | 2 | | | awake path, 42 ms, with t2rx logging |
 | `20260920T012503Z_i60_d15000_t15000_c0.8_int8_demoA2` | 20260920 | | 15000 | 60 s | 15000 | 0.8 | int8 | 2 | | | beats 2+3: halt step then boot into expired stimulus |
+| `20260920T053118Z_i60_d30000_t15000_c0.8_int8_control` | 20260920 | | 15000 | 60 s | 30000 | 0.8 | int8 | 2 | | | positive control: stimulus 30s > T_boot 20.8s |
+| `20260920T062359Z_i60_d30000_t15000_c0.8_int8_control` | 20260920 | | 15000 | 60 s | 30000 | 0.8 | int8 | 2 | | | positive control: stimulus 30s > T_boot 20.8s |
 
 ---
 
@@ -334,3 +340,25 @@ distribution, not just the mean — the halted case's variance is the boot-time 
    a manifest is a run that did not happen.**
 8. Tier 1's trimmer has not moved since the ROC sweep. If it has, note it — the cells
    before and after are not comparable.
+
+## Sep 20 correction to the Sep 19 overnight classifications
+
+The owner reviewed a recording from another device and supplied 400 stimulus outcomes in
+`data/overnight_manual_review.csv` for the ten `_overnight` runs. The owner confirmed that
+the file's former synthetic labels came from LLM formatting and did not describe the data.
+Those fields are now named `reviewed_class_id` and `reviewed_correct`.
+
+Per-run `reviewed_events.csv` files supersede machine-derived classification outcomes in
+`accuracy.json`, including on subsequent analysis runs. The corrected total is **189/400
+(47.25%)**; per-cell results are in [REPORT.md §4.1](REPORT.md#41-what-the-model-did-not-predict).
+All 400 stimulus references and 327 linked result references matched the original files.
+The owner subsequently confirmed that the first and final stimulus in every cell was
+classified incorrectly, with its predicted label unknown. All 20 endpoint records carry
+the marker `unknown` and correctness `0`. The review contains 27 additional outcomes
+without matched machine rows, so it does not
+provide a complete corrected timing, boot-state, firing or inference-count record.
+
+Original inputs, reports and batch logs are backed up under `data/manual_review_originals/`.
+Machine event, daemon and power records remain intact. Batch logs carry correction notices;
+manifests identify the review source and hash. Historical duration remains 15 s; this review
+does not establish performance for the current 25 s configuration.
