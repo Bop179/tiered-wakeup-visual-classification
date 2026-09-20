@@ -221,28 +221,39 @@ points instead of a curve. Hold the stimulus **constant** across all three takes
 Two-up: **monitor** and **serial log**. Put a caption in the corner naming the setting. Sweep one
 knob at a time and say which.
 
-| Take | Knob | What to show | Caption |
+All three shot Sep 19 with the trimmer as the only knob, `PERSIST` held at 10 ms, and capture
+disabled (`--no-camera`) — this segment measures Tier 1's threshold, so the classifier is a
+confound it does not need. **The class column in these logs is a fixed stub; do not narrate it.**
+Data: `data/demoB/{normal,sens,lowsens}.{csv,log}`.
+
+| Take | Trimmer | Measured | Caption |
 |---|---|---|---|
-| 1 — as locked | `SET,PERSIST,10`, trimmer as run overnight | Real flashes → `EVT`. Flicker → nothing. | *as run: 1 false trigger in 5 min* |
-| 2 — too sensitive | trimmer toward threshold, or `SET,PERSIST,0` | Flicker now fires `EVT` after `EVT` | *false wakes* |
-| 3 — too insensitive | `SET,PERSIST,400` (or trimmer back) | Real flashes rejected, `# t2: noise` lines | *missed events* |
+| 1 — as locked | as run overnight | **4/4** real flashes → `EVT`; 4 baits → 0 accepted, 2 logged `# t2: noise 4 ms` | *as run: 4 of 4, bait rejected* |
+| 2 — sensitive | toward threshold | **94** comparator blips at 0–1 ms, **all rejected**; still 4/4 real; **0 false wakes** | *94 blips, 0 wakes* |
+| 3 — insensitive | away from threshold | **0 triggers of any kind** — the LED never lights | *nothing gets through* |
 
 **SAY (J):** "Tier one has two knobs: a hardware threshold on the comparator trimmer, and a
 software persistence time in the firmware — how long the comparator has to hold before tier two
-believes it. Same stimulus in all three of these: six real flashes, plus deliberate low-contrast
+believes it. Same stimulus in all three of these: four real flashes, plus deliberate low-contrast
 flicker as bait.
 
-This is the setting we ran the matrix at. Real flashes get through, the bait doesn't, and in a
-five-minute black-screen test we saw one false trigger.
+This is the setting we ran the matrix at. Four real flashes, four caught. The bait gets rejected —
+you can see tier two logging it as noise, four milliseconds, too short to believe.
 
-Now too sensitive. *(turn the trimmer / send `SET,PERSIST,0`)* Every flicker is an event now. On a
-bench that just looks noisy — in this system each one of those is a full wake and a twenty-second
-boot, so the false-positive rate is denominated in *joules*.
+Now I turn the threshold down until tier one is firing on nothing. *(turn the trimmer)* Ninety-four
+times in two minutes the comparator trips, and look at what tier three does about it: **nothing.**
+Every one of those blips lasted under a millisecond, and tier two's persistence filter threw away
+all ninety-four while still catching all four real flashes. That is the thing we did not expect and
+it is the best argument for the architecture: tier one can be badly miscalibrated and the system
+still does not wake up. You would have to break the firmware too.
 
-And too insensitive. *(`SET,PERSIST,400`)* The bait is gone, but so are the real flashes — they're
-logged as noise. This is the failure we actually hit: persistence shipped at forty milliseconds
-and was silently rejecting real LDR flashes. Ten milliseconds fixed it and the quiet test still
-passed.
+And now the other way. *(turn the trimmer back past centre)* Nothing gets through at all — the
+indicator LED never lights, and the log stays empty for the whole two minutes. A tier one that
+cannot see is indistinguishable from a tier one that isn't there.
+
+We have been on the wrong side of that filter too, in the other direction: persistence shipped at
+forty milliseconds and was silently rejecting real flashes. Ten fixed it. The filter that saved us
+here is the same one that cost us a week when it was set wrong.
 
 We should be straight about this: the threshold was bracketed by hand — find where the comparator
 just turns on, find where it just turns off, sit in the middle — not chosen off a measured

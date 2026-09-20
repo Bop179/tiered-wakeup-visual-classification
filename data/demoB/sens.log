@@ -1,0 +1,107 @@
+INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
+# sync offset -1828604.6 ms
+# param DORMANCY=-1
+# param PERSIST=10
+# clapperboard 1789874126.568 2s
+# ready 1789874128.574 uptime=6467.1 model=int8
+# t2rx # t2: pi ready
+# evt 3 awake 108ms -> 955 banana 0.870 FIRED
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# evt 4 awake 105ms -> 955 banana 0.870 FIRED
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# evt 5 awake 107ms -> 955 banana 0.870 FIRED
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# evt 6 awake 106ms -> 955 banana 0.870 FIRED
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# evt 7 awake 106ms -> 955 banana 0.870 FIRED
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 0 ms
+# t2rx # t2: noise 1 ms
+# t2rx # t2: noise 1 ms
+# evt 8 awake 105ms -> 955 banana 0.870 FIRED
