@@ -178,12 +178,20 @@ comparison. Quote that one.
 
 ## 6. Framing the savings honestly
 
-**Everything measured here is the Pi rail only.** The FNB58 sits between the wall brick and the Pi.
-Tier 1 and Tier 2 draw their own current and **were never metered** — §5 of
-`docs/trigger_characterization.md` is empty because no DMM was ever put in series with either board.
-An Arduino Uno idles around 20 mA at 5 V, roughly 0.1 W, which is about 8% of the best cell's
-0.88 W saving; that figure is a datasheet expectation, not a measurement. **The cascade is not
-demonstrated to be net-positive in energy.** It is demonstrated to reduce Pi-rail energy.
+**Every cell figure here is the Pi rail only.** The FNB58 sat between the wall brick and the Pi, so
+Tiers 1 and 2 are outside every number in §2 and §3. They were metered separately on Sep 19 (§5 of
+`docs/trigger_characterization.md`): Tier 1 draws **12 mW** watching, and the Uno board with Tier 1
+on its 5 V pin draws **167 mW awake, 89 mW in power-down sleep** — the sleep step visible on the
+meter 52 s after power-up, where the firmware's dormancy timer puts it.
+
+**The cascade is net-positive in energy, but not by the margin the tiering story implies.** Weighted
+by each cell's halted fraction, Tiers 1+2 cost about **0.11 W** against Pi-rail savings of 0.21 W to
+0.73 W. So the overhead is ~15% of the best cell's saving (120 s / 30 s) and ~61% of the worst's
+(20 s / 60 s). Note the direction: the cascade is *cheapest* relative to the saving at long
+intervals, because rare events let the Pi halt more — the opposite of what we guessed before
+measuring. Nothing here is net-negative, but a cascade that eats 61% of the benefit in its worst
+configuration is a much weaker claim than "Tier 2 is free," and the 89 mW sleep floor is dominated
+by the Uno's power LED and ATmega16U2 USB bridge, neither of which a deployed design would carry.
 
 **The halted floor is 2.0 W, not zero.** `POWER_OFF_ON_HALT=0` is required for GPIO3 wake, so a
 halted Pi keeps its always-on rail energised. Of that floor, 0.72 W is the case fans, which ran

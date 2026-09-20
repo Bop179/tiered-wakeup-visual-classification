@@ -5,9 +5,11 @@ Tier 1 section for the deadline. Everything below is either measured at the rig 
 **OUTSTANDING**. the Tier 2 owner: correct the values, fill the gaps you have instruments for, and write §6 in
 your own words — that section carries more weight in the write-up than the tables.
 
-> **Provenance.** §1–§3 and §6 describe the rig as it ran the Sep 18–19 overnight matrix. §4 and §5
-> were never run: the Pi was down Sep 13–17 and the one remaining night went to the matrix itself.
-> They are reported as not-measured, not estimated.
+> **Provenance.** §1–§3 and §6 describe the rig as it ran the Sep 18–19 overnight matrix. §5 was
+> measured on the bench Sep 19 (DMM for Tier 1, FNB58 for the Uno). §4 was never run: the Pi was
+> down Sep 13–17 and the one remaining night went to the matrix itself. It is reported as
+> not-measured, not estimated. The only rows still unmeasurable are the ATmega-alone ones, which
+> need a trace cut this board has not had.
 
 ---
 
@@ -87,25 +89,54 @@ claim an operating point chosen from a ROC.** It should say the threshold was br
 .venv/bin/python tools/trigger_patch.py sweep --trimmer <wiper V> --serial /dev/cu.usbserial-110
 ```
 
-## 5. Tier 1 and Tier 2 current — NOT MEASURED
+## 5. Tier 1 and Tier 2 current
 
-No DMM was in series with either board at any point. The FNB58 sits on the Pi rail only, so it
-measures Tier 3 and nothing else.
+Measured Sep 19. Tier 1 with a DMM in series in the 5 V feed from the Uno's `5V` pin to the
+breadboard rail; the Uno board with the FNB58 inline in its wall-charger USB lead.
 
 | What | Condition | Current | Voltage | Power |
 |---|---|---|---|---|
-| Tier 1 total | quiescent | OUTSTANDING | 5 V | |
-| Tier 1 total | triggered | OUTSTANDING | 5 V | |
-| ATmega328P only | power-down sleep | OUTSTANDING | 5 V | |
-| ATmega328P only | awake, idle | OUTSTANDING | 5 V | |
-| Uno board | power-down sleep | OUTSTANDING | 5 V | expect ~20 mA — LED + USB chip |
-| Uno board | awake, idle | OUTSTANDING | 5 V | |
+| **Tier 1 total** | quiescent (black screen) | **2.40–2.43 mA** | 5 V | **~12 mW** |
+| **Tier 1 total** | triggered (white patch) | **4.18–4.40 mA** | 5 V | **~21 mW** |
+| ATmega328P only | power-down sleep | **not measurable** | 5 V | see below |
+| ATmega328P only | awake, idle | **not measurable** | 5 V | see below |
+| Uno board + Tier 1 | awake, idle | **31.24 mA** | 5.332 V | **167 mW** |
+| Uno board + Tier 1 | power-down sleep | **16.77 mA** | 5.336 V | **89 mW** |
+| Uno board alone | awake, idle | ~28.8 mA | 5.33 V | ~154 mW (Tier 1 subtracted) |
+| Uno board alone | power-down sleep | ~14.4 mA | 5.33 V | ~77 mW (Tier 1 subtracted) |
 
-**Consequence for the write-up:** every energy number the project reports is Tier 3 only. The
-savings figures are "Pi rail against an always-on Pi rail". Tiers 1 and 2 are a real, unmeasured
-addition to system power, and the report must say so rather than implying the cascade is free. The
-Uno alone plausibly costs more than the savings at long intervals — that claim cannot be settled
-without this table.
+**Tier 1 costs about 12 mW watching and 21 mW while triggered.** The ~9 mW difference is mostly the
+comparator's indicator LED, which is a debug aid and not part of the design — a deployed Tier 1
+would sit at the 12 mW figure.
+
+**The ATmega alone cannot be measured on this board.** Isolating the chip's VCC from the Uno's
+regulator, power LED and ATmega16U2 USB bridge means cutting a trace, which was not done. Every
+Tier 2 figure here is therefore a **whole-board** figure and must be labelled as such. A microwatt
+sleep claim would need a bare ATmega on a breadboard, which this project does not have.
+
+**Sleep entry is visible on the meter, not just inferred.** One continuous log across a power-cycle
+shows 31.2 mA flat for 51 s, then a clean step to 16.8 mA at **t = 52 s** — exactly the firmware's
+30 s dormancy + 2 s ACK timeout + 20 s `HALT_SETTLE_MS`. The step is what licenses calling the lower
+plateau "power-down sleep"; a single reading could not. The sleep plateau is flat to ±0.01 mA over
+90 s, and mean(V·I) and dE/dt agree at 89.5 mW.
+Method: `tools/fnb58_logger.py`, meter inline in the Uno's wall-USB lead, Pi and Mac both
+disconnected (any serial traffic resets the dormancy timer), monitor blacked so Tier 1 stayed idle.
+Raw: `data/uno_sleep_awake/power.csv`, `power_sleep.csv`.
+
+**Tier 1 is inside this boundary.** It is fed from the Uno's `5V` pin, so its ~2.4 mA is in both
+figures, and the 5 V rail stays live while the MCU is powered down — Tier 1 does not sleep with it.
+The "Uno board alone" rows subtract 2.40 mA. That subtraction is slightly conservative: the pin
+actually sits near 5.3 V on USB power, not the 5.0 V at which Tier 1 was metered.
+
+**Consequence for the write-up:** every energy number the project reports is still Tier 3 only, and
+the savings figures are "Pi rail against an always-on Pi rail". But the cascade's own cost is now
+measured, so the open question is answered — **and the earlier guess was backwards.** Weighting the
+two plateaus by each cell's halted fraction, Tiers 1+2 cost ~0.11 W against Pi-rail savings of
+0.21–0.73 W. The cascade is net-positive at every cell measured. It is cheapest relative to the
+saving at **long** intervals (120 s / 30 s: ~15% of a 0.729 W saving), not most expensive: rare
+events let the Pi halt more and save more. The squeeze is the opposite corner — short interval, long
+dormancy (20 s / 60 s: ~61% of a 0.212 W saving), where the Pi stays awake often and the Uno stays
+awake alongside it.
 
 ## 6. What surprised us
 
