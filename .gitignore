@@ -56,3 +56,6 @@ overnight_stop
 
 # Same stray again when event_display.py runs from the repo root
 /gen.csv
+
+# Demo video production: raw footage, slides and b-roll, not project artifacts
+video/
