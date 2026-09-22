@@ -28,6 +28,7 @@ import argparse
 import csv
 import io
 import json
+import os
 import subprocess
 import sys
 import threading
@@ -157,7 +158,8 @@ def newest_run(data: Path) -> Path | None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--run", type=Path, help="run dir (default: newest data/*/power.csv)")
-    ap.add_argument("--host", default="pi", help="ssh target for the Pi")
+    ap.add_argument("--host", default=os.environ.get("PI_HOST", "pi"),
+                    help="ssh target for the Pi (default: $PI_HOST or 'pi')")
     ap.add_argument("--pi-repo", default="~/tiered-wakeup-visual-classification")
     ap.add_argument("--window", type=float, default=120, help="seconds of power shown")
     # Calibration knob. Halted is a flat ~2.00 W, but the first ~10 s of a boot sit at
