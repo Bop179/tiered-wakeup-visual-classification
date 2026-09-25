@@ -356,7 +356,7 @@ def self_test(args) -> int:
         failures.append(f"release-after did not SET DORMANCY -1: {got}")
 
     # Clamping is a unit test of Tier 2's side, on its own queues so the replies
-    # do not land in the daemon's inbox. This is the behaviour the Tier 2 owner's firmware
+    # do not land in the daemon's inbox. This is the behaviour the real firmware
     # must reproduce: CFG reports what is IN EFFECT, never what was requested.
     probe = MockArduino(QueueLink(deque(), deque()), args)
     for key, want, expect in (("DORMANCY", 12000, 12000),

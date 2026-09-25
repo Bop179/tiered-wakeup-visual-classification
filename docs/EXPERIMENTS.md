@@ -283,7 +283,7 @@ power while using less energy per inference. Power alone cannot distinguish effi
 
 ### 4 — Secondary: Tier 1 ROC
 
-Mostly collected by the Tier 2 owner during build week (`trigger_characterization.md`); folds in here as a
+Mostly collected during build week (`trigger_characterization.md`); folds in here as a
 figure. Trimmer position × patch contrast → detection rate vs false-trigger rate.
 
 Sub-threshold flicker events are injected as false-positive bait and logged in `gen.csv` with

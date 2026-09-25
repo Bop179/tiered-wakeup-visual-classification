@@ -131,7 +131,7 @@ naive model, which overstates average power by 60% at a 15 s mean interval.
 ```
 docs/     INTERFACE.md (frozen Tier2↔Tier3 contract)
           EXPERIMENTS.md (matrix + run log) · trigger_characterization.md
-firmware/ tier2_firmware/          Arduino Uno — the Tier 2 owner
+firmware/ tier2_firmware/          Arduino Uno
 pi/       pi_daemon.py · classify.py · models/
           run_current.sh · tier3-daemon.service · install_service.sh
 tools/    event_display.py · trigger_patch.py · reference_predict.py · fetch_stimulus.py

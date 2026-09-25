@@ -4,8 +4,8 @@
 If something here has to change, it changes *here first*, in a commit, and the other
 owner is told. Do not diverge locally.
 
-Owners: **Tier 1 + Tier 2 (analog trigger, Arduino firmware) — the Tier 2 owner.**
-**Tier 3 + instrumentation (Pi, daemon, power logging, analysis) — the Tier 3 owner.**
+Owners: **Tier 1 + Tier 2 (analog trigger, Arduino firmware).**
+**Tier 3 + instrumentation (Pi, daemon, power logging, analysis).**
 
 ---
 
@@ -24,7 +24,7 @@ Owners: **Tier 1 + Tier 2 (analog trigger, Arduino firmware) — the Tier 2 owne
 
 The Uno's hardware UART is also its USB serial. That is deliberate and it buys one thing:
 with the Arduino plugged into a laptop by USB and **nothing wired to the Pi**, `tools/mock_pi.py`
-speaks the exact same protocol over `/dev/cu.usbmodem*`. the Tier 2 owner can develop and verify the whole
+speaks the exact same protocol over `/dev/cu.usbmodem*`. The Tier 2 owner can develop and verify the whole
 firmware state machine with no Pi, no level shifting and no extra adapter, and the code path is
 identical to the integrated one.
 
@@ -64,12 +64,12 @@ So `Serial.println("# woke, peak=412");` is always safe. Protocol lines never st
 
 ### 1.1 Runtime parameters — `SET` / `GET` / `CFG`
 
-**Added 2026-09-05, after the scaffold. the Tier 2 owner has not written the firmware yet, so
+**Added 2026-09-05, after the scaffold. The firmware has not been written yet, so
 this costs no rework — but it is a contract change and it is why this section exists.**
 
 The dormancy timeout is the swept variable of the headline experiment: six values ×
 four event rates = **24 matrix cells**. If `DORMANCY_MS` is a compile-time constant,
-each of those cells needs a reflash, which means the Tier 2 owner has to be physically present for
+each of those cells needs a reflash, which means someone has to be physically present for
 every cell on Sep 14–16, and the run script can only record *what you say you flashed*.
 Both of those are avoidable.
 
@@ -430,7 +430,7 @@ and free-text notes. **A run without a manifest is a run that did not happen.**
 
 ---
 
-## 6. Firmware constants the Tier 2 owner owns
+## 6. Firmware constants Tier 2 owns
 
 Exposed at the top of `tier2_firmware.ino`. The three marked runtime-settable are also
 reachable over the link via `SET`/`GET` (§1.1) — **that is how the matrix sweeps them, so
@@ -464,7 +464,7 @@ Each side must be fully exercisable with the other absent. Both exist **before S
 
 - **`tools/mock_arduino.py`** (the Tier 3 owner) — drives `pi_daemon.py` over a pty or a USB-TTL adapter.
   Emits `EVT` at a chosen rate, honours `ACK`/`RES`, answers `SYNC`, and can send `HALT`.
-- **`tools/mock_pi.py`** (the Tier 2 owner) — connects to the Arduino's USB serial, answers `EVT` with `ACK`
+- **`tools/mock_pi.py`** — connects to the Arduino's USB serial, answers `EVT` with `ACK`
   then a delayed `RES`, answers `SYNC`, and can simulate the halted state by going silent for 30 s
   so the boot path gets exercised without a Pi.
 

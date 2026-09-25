@@ -1,8 +1,8 @@
 # Tier 1 trigger characterization
 
-**Owner: the Tier 2 owner.** Drafted Sep 19 by the Tier 3 owner from the as-built rig and the repo, so the write-up has a
+Drafted Sep 19 from the as-built rig and the repo, so the write-up has a
 Tier 1 section for the deadline. Everything below is either measured at the rig or marked
-**OUTSTANDING**. the Tier 2 owner: correct the values, fill the gaps you have instruments for, and write §6 in
+**OUTSTANDING**. Tier 1 owner: correct the values, fill the gaps you have instruments for, and write §6 in
 your own words — that section carries more weight in the write-up than the tables.
 
 > **Provenance.** §1–§3 and §6 describe the rig as it ran the Sep 18–19 overnight matrix. §5 was
@@ -31,7 +31,7 @@ your own words — that section carries more weight in the write-up than the tab
 | Hysteresis R | | **~100–220 kΩ** | OUTSTANDING — exact value not recorded. Brief specified 1 MΩ. |
 | Threshold trimmer | 3386P | **deliberately not metered** | See §4. Decided Sep 19: the absolute wiper voltage is a function of ambient light and the LDR divider, so it does not transfer to another room and is not worth recording as a design constant. The trimmer is a calibration knob, not a spec. |
 
-**OUTSTANDING for the Tier 2 owner:** confirm the op-amp topology (inverting or non-inverting), read the actual
+**OUTSTANDING:** confirm the op-amp topology (inverting or non-inverting), read the actual
 hysteresis resistor off the board, and meter the threshold wiper to the millivolt.
 
 ## 2. Sensor sees the monitor

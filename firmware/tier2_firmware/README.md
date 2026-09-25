@@ -1,7 +1,7 @@
-# `firmware/tier2_firmware/` — Tier 2, Arduino Uno (the Tier 2 owner)
+# `firmware/tier2_firmware/` — Tier 2, Arduino Uno
 
 `tier2_firmware.ino` goes here. It is **not** in the repo yet because it is the Tier 2 owner's deliverable,
-not something to be written for him — the interface contract is what he needs from our side, and
+not something to be written for them — the interface contract is what they need from our side, and
 that is already frozen.
 
 ## What to read first, in this order
@@ -32,7 +32,7 @@ so a sweep is a reflash, not an edit.
 
 ## Developing with no Pi attached
 
-`tools/mock_pi.py` (also the Tier 2 owner's) answers `EVT` with `ACK` then a delayed `RES`, answers `SYNC`, and
+`tools/mock_pi.py` answers `EVT` with `ACK` then a delayed `RES`, answers `SYNC`, and
 can go silent for 30 s to simulate the halted-and-booting Pi. Build against it so that the Sep 10
 integration session is a two-hour check, not a debugging session.
 

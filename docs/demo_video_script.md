@@ -3,7 +3,7 @@
 **10:00 target. The video is the entire submission** (no repo, report, or deck is graded), so
 every claim the project wants credit for has to be said out loud or shown on screen here.
 
-Two voices: **C** = the Tier 3 owner (Tier 3, measurement, analysis), **J** = the Tier 2 owner (Tier 1 analog, Tier 2
+Two voices: **C** = Tier 3 (Tier 3, measurement, analysis), **J** = Tier 1/2 (Tier 1 analog, Tier 2
 firmware). Alternating keeps ten minutes awake. If only one person records, keep the same
 segments and drop the initials.
 
