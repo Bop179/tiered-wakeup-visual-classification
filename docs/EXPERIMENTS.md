@@ -363,8 +363,8 @@ the corrected **25000 ms (25 s)** default; earlier rows are not 25 s measurement
 
 ## Sep 20 correction to the Sep 19 overnight classifications
 
-The owner reviewed a recording from another device and supplied 400 stimulus outcomes in
-`data/overnight_manual_review.csv` for the ten `_overnight` runs. The owner confirmed that
+A manual review of a recording from another device supplied 400 stimulus outcomes in
+`data/overnight_manual_review.csv` for the ten `_overnight` runs. It confirmed that
 the file's former synthetic labels came from LLM formatting and did not describe the data.
 Those fields are now named `reviewed_class_id` and `reviewed_correct`.
 
@@ -372,7 +372,7 @@ Per-run `reviewed_events.csv` files supersede machine-derived classification out
 `accuracy.json`, including on subsequent analysis runs. The corrected total is **189/400
 (47.25%)**; per-cell results are in [REPORT.md §4.1](REPORT.md#41-what-the-model-did-not-predict).
 All 400 stimulus references and 327 linked result references matched the original files.
-The owner subsequently confirmed that the first and final stimulus in every cell was
+The review subsequently confirmed that the first and final stimulus in every cell was
 classified incorrectly, with its predicted label unknown. All 20 endpoint records carry
 the marker `unknown` and correctness `0`. The review contains 27 additional outcomes
 without matched machine rows, so it does not

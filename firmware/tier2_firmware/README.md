@@ -1,8 +1,6 @@
 # `firmware/tier2_firmware/` — Tier 2, Arduino Uno
 
-`tier2_firmware.ino` goes here. It is **not** in the repo yet because it is the Tier 2 owner's deliverable,
-not something to be written for them — the interface contract is what they need from our side, and
-that is already frozen.
+`tier2_firmware.ino` goes here. It is **not** in the repo yet. The interface contract in `docs/INTERFACE.md` is frozen.
 
 ## What to read first, in this order
 
@@ -36,5 +34,5 @@ so a sweep is a reflash, not an edit.
 can go silent for 30 s to simulate the halted-and-booting Pi. Build against it so that the Sep 10
 integration session is a two-hour check, not a debugging session.
 
-Our side is already exercisable the same way — `python3 tools/mock_arduino.py --self-test` speaks
+The Pi side is exercisable the same way — `python3 tools/mock_arduino.py --self-test` speaks
 both halves of the protocol against itself and passes today, including every malformed-input case.

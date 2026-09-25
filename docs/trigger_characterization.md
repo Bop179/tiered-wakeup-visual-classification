@@ -2,8 +2,7 @@
 
 Drafted Sep 19 from the as-built rig and the repo, so the write-up has a
 Tier 1 section for the deadline. Everything below is either measured at the rig or marked
-**OUTSTANDING**. Tier 1 owner: correct the values, fill the gaps you have instruments for, and write §6 in
-your own words — that section carries more weight in the write-up than the tables.
+**OUTSTANDING**.
 
 > **Provenance.** §1–§3 and §6 describe the rig as it ran the Sep 18–19 overnight matrix. §5 was
 > measured on the bench Sep 19 (DMM for Tier 1, FNB58 for the Uno). §4 was never run: the Pi was

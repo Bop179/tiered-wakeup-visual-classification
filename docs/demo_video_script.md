@@ -3,8 +3,8 @@
 **10:00 target. The video is the entire submission** (no repo, report, or deck is graded), so
 every claim the project wants credit for has to be said out loud or shown on screen here.
 
-Two voices: **C** = Tier 3 (Tier 3, measurement, analysis), **J** = Tier 1/2 (Tier 1 analog, Tier 2
-firmware). Alternating keeps ten minutes awake. If only one person records, keep the same
+Two voices, **C** (Tier 3, measurement, analysis) and **J** (Tier 1 analog, Tier 2 firmware).
+Alternating keeps ten minutes awake. If only one person records, keep the same
 segments and drop the initials.
 
 Narration is written to be read at ~140 wpm. Don't ad-lib past a segment's time — the last two

@@ -1,11 +1,7 @@
 # INTERFACE — the contract between Tier 2 and Tier 3
 
 **Status: frozen as of 2026-09-05.** Both halves are written against this document.
-If something here has to change, it changes *here first*, in a commit, and the other
-owner is told. Do not diverge locally.
-
-Owners: **Tier 1 + Tier 2 (analog trigger, Arduino firmware).**
-**Tier 3 + instrumentation (Pi, daemon, power logging, analysis).**
+If something here has to change, it changes *here first*, in a commit. Do not diverge locally.
 
 ---
 
@@ -24,8 +20,8 @@ Owners: **Tier 1 + Tier 2 (analog trigger, Arduino firmware).**
 
 The Uno's hardware UART is also its USB serial. That is deliberate and it buys one thing:
 with the Arduino plugged into a laptop by USB and **nothing wired to the Pi**, `tools/mock_pi.py`
-speaks the exact same protocol over `/dev/cu.usbmodem*`. The Tier 2 owner can develop and verify the whole
-firmware state machine with no Pi, no level shifting and no extra adapter, and the code path is
+speaks the exact same protocol over `/dev/cu.usbmodem*`. The whole
+firmware state machine can be developed and verified with no Pi, no level shifting and no extra adapter, and the code path is
 identical to the integrated one.
 
 Consequence: **the USB cable must be unplugged from the Arduino before wiring D0/D1 to the Pi**,
@@ -430,7 +426,7 @@ and free-text notes. **A run without a manifest is a run that did not happen.**
 
 ---
 
-## 6. Firmware constants Tier 2 owns
+## 6. Firmware constants
 
 Exposed at the top of `tier2_firmware.ino`. The three marked runtime-settable are also
 reachable over the link via `SET`/`GET` (§1.1) — **that is how the matrix sweeps them, so
@@ -462,7 +458,7 @@ ATmega on a custom board. Honest beats impressive.
 
 Each side must be fully exercisable with the other absent. Both exist **before Sep 10.**
 
-- **`tools/mock_arduino.py`** (the Tier 3 owner) — drives `pi_daemon.py` over a pty or a USB-TTL adapter.
+- **`tools/mock_arduino.py`** — drives `pi_daemon.py` over a pty or a USB-TTL adapter.
   Emits `EVT` at a chosen rate, honours `ACK`/`RES`, answers `SYNC`, and can send `HALT`.
 - **`tools/mock_pi.py`** — connects to the Arduino's USB serial, answers `EVT` with `ACK`
   then a delayed `RES`, answers `SYNC`, and can simulate the halted state by going silent for 30 s
