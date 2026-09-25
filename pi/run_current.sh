@@ -16,6 +16,7 @@
 #     MODEL=int8
 #     TARGET_CLASS=banana
 #     DORMANCY_MS=15000          # optional; empty = do not SET
+#     RELEASE_AFTER=4            # optional; stop halting after this many events
 #     PORT=/dev/serial0          # optional
 #     EXTRA_ARGS=                # optional, appended to the daemon command
 set -euo pipefail
@@ -28,7 +29,7 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 0
 fi
 
-RUN_ID="" MODEL="int8" TARGET_CLASS="banana" DORMANCY_MS="" PORT="/dev/serial0" EXTRA_ARGS=""
+RUN_ID="" MODEL="int8" TARGET_CLASS="banana" DORMANCY_MS="" RELEASE_AFTER="" PORT="/dev/serial0" EXTRA_ARGS=""
 # shellcheck disable=SC1090
 . "$ENV_FILE"
 if [ -z "$RUN_ID" ]; then
@@ -65,6 +66,9 @@ args=(--port "$PORT" --model "$MODEL" --target-class "$TARGET_CLASS"
       --clapperboard "$CLAP" --exit-dormancy -1)
 if [ -n "$DORMANCY_MS" ]; then
   args+=(--dormancy-ms "$DORMANCY_MS")
+fi
+if [ -n "$RELEASE_AFTER" ]; then
+  args+=(--release-after "$RELEASE_AFTER")
 fi
 
 echo "# tier3 wrapper start $(date -u +%Y-%m-%dT%H:%M:%SZ) uptime=$(cut -d' ' -f1 /proc/uptime 2>/dev/null || echo ?) clapperboard=${CLAP}s" >> "$LOG"

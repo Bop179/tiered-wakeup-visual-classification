@@ -1,6 +1,6 @@
 * Tier 1 - analog change detector, corrected reference circuit
 * ===========================================================================
-* Companion to docs/TEAMMATE_BRIEF.md S1 (the ASCII schematic is there) and
+* Companion to
 * docs/trigger_characterization.md (as-built values).
 *
 * LTspice:  File > Open > docs/tier1_analog.cir, then Run.
@@ -108,7 +108,7 @@ S1 out gnd inn inp SWMOD
 * trigger_characterization.md - that is the patch not returning to black, a DC
 * effect this stage is built not to see.
 * The middle term is the false-trigger margin. If it is thin, cascade a second
-* 33k/0.1u before touching WIPER - see TEAMMATE_BRIEF.md S1 stage 4.
+* 33k/0.1u before touching WIPER (stage 4).
 *
 * IB experiment: set IB=45n (LM358 typical). 45 nA through RHP=1Meg lifts HP by
 * 45 mV, x11 = ~0.5 V of output offset, and the idle no longer sits at 2.5 V.

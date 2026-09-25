@@ -1,9 +1,0 @@
-t_mac,event_idx,image_id,true_class,true_class_id,patch_contrast,duration_ms,is_target
-1789871313.988,0,NONE,NONE,-1,0.150,200,0
-1789871321.302,1,banana_47701.jpg,banana,955,0.800,4000,1
-1789871342.612,2,NONE,NONE,-1,0.150,200,0
-1789871342.832,3,lemon_47551.jpg,lemon,952,0.800,4000,0
-1789871350.810,4,NONE,NONE,-1,0.150,200,0
-1789871351.645,5,butternut_squash_47101.jpg,butternut squash,943,0.800,4000,0
-1789871373.868,6,NONE,NONE,-1,0.150,200,0
-1789871383.629,7,coffee_mug_25200.jpg,coffee mug,505,0.800,4000,0

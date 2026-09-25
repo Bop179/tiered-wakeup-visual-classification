@@ -49,6 +49,7 @@ standard directory-per-class layout images/<class_name>/*.jpg. See images/README
 from __future__ import annotations
 
 import argparse
+import os
 import csv
 import random
 import sys
@@ -111,7 +112,16 @@ def build_schedule(args, stimulus: list[dict]) -> list[dict]:
         return rng.expovariate(1.0 / args.mean_interval)
 
     schedule, real_idx = [], 0
-    for _ in range(args.n_events):
+    first_dwell = getattr(args, "first_dwell", None)
+    for i in range(args.n_events):
+        # --first-dwell: open on an event rather than a gap, e.g. a demo that
+        # shows the awake path first. That first gap carries no flicker.
+        if i == 0 and first_dwell is not None:
+            schedule.append({"dwell_s": first_dwell, "kind": "event",
+                             "image": next_image(real_idx), "contrast": args.contrast,
+                             "duration_ms": args.duration_ms})
+            real_idx += 1
+            continue
         # Flicker bait rides in the dwell before the real event.
         if args.flicker_rate > 0 and rng.random() < args.flicker_rate:
             schedule.append({
@@ -301,10 +311,12 @@ def main() -> int:
                     help="probability of a sub-threshold bait flash before each event")
     ap.add_argument("--flicker-contrast", type=float, default=0.15)
     ap.add_argument("--flicker-duration-ms", type=int, default=200)
+    ap.add_argument("--first-dwell", type=float, default=None,
+                    help="seconds of black before the first event (default: a normal dwell)")
     ap.add_argument("--target-class", default="banana")
     ap.add_argument("--images", default=str(REPO / "images"))
-    ap.add_argument("--display", type=int, default=1,
-                    help="monitor index (default: 1, external rig display; 0 = built-in)")
+    ap.add_argument("--display", type=int, default=int(os.environ.get("RIG_DISPLAY", 1)),
+                    help="monitor index (default: $RIG_DISPLAY or 1; 0 = built-in)")
     ap.add_argument("--patch-corner", choices=["tl", "tr", "bl", "br"],
                     default=DEFAULT_PATCH_CORNER)
     ap.add_argument("--patch-frac", type=float, default=DEFAULT_PATCH_FRAC,

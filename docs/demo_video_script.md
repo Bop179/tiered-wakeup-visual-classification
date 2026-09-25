@@ -152,23 +152,27 @@ halt, and the Pi goes down."
 **SAY (J):** "Everything from here is the part a slide deck would hide. New event. Tier one fires,
 tier two pulls GPIO3 low, and the Pi starts booting — and we are going to sit here for all of it."
 
-*Run it real time. Timer counts. The stimulus image leaves the screen at 15 s, and the monitor
-goes black while the Pi is still booting. Let that land.*
+*Run it real time. Timer counts. Hold the stimulus for 25 s. The Pi should become ready
+at about 20.8 s while the image is still visible; keep the result and timer in frame.*
 
-**SAY (C):** "Twenty-point-eight seconds. Notice what just happened at fifteen: the image we woke
-up for left the screen. The Pi finishes booting, takes its photograph, and photographs a blank
-monitor. It reports an answer, and the answer is wrong. That is not a bug in our classifier. That
-is the whole architecture telling us something, and it is the most important result we have."
+**SAY (C):** "Twenty-point-eight seconds to become ready. Our stimulus lasts twenty-five
+seconds, leaving about four seconds to capture the image after boot. Watch the actual
+classification result: the timing now allows the Pi to see the image that woke it."
 
 ---
 
 ## 6. Data and analysis (6:15–8:15)
 
+**Historical results:** Label the existing matrix figures as the earlier short-stimulus
+runs. They do not measure the corrected 25 s configuration. Replace them only after a
+new matrix run, and update the numerical narration to match that run.
+
 **SHOW:** In order — (a) the constants table, (b) `analysis/figures/trace.png`, (c) the
 pre-registered-vs-measured Pareto, (d) `analysis/figures/pareto.png` with the fitted lines, (e) the
-accuracy-collapse table. One figure per claim; don't crowd them.
+accuracy table. One figure per claim; don't crowd them.
 
-**SAY (C):** "Ten cells, overnight, forty events each. Three event rates crossed with four
+**SAY (C):** "These are the historical short-stimulus results: ten cells, overnight, forty
+events each. Three event rates crossed with four
 dormancy settings.
 
 Start with the constants, because two of them moved the project. A halted Pi costs two watts, not
@@ -193,17 +197,16 @@ shortest interval. The error runs in exactly the direction the fit quality ranks
 halting cell drew less power than its never-halting partner at every interval, down to twenty
 seconds — no crossover, as predicted."
 
-**SAY (C, over the accuracy table):** "Then there's what the model didn't predict, because we
-never told it the stimulus could expire. End-to-end top-one accuracy: the never-halting cells hold
-around fifty-five percent against a seventy-percent ceiling. The halting cells run from forty
-percent down to two-and-a-half, ordered monotonically by how little they halt.
+**SAY (C, over the accuracy table):** "Across four hundred stimuli, one hundred eighty-nine were
+classified correctly: forty-seven-point-two-five percent. The never-halting cells scored
+forty-seven-and-a-half to fifty-two-and-a-half percent; the halting cells scored thirty-seven-and-a-half
+to fifty-seven-and-a-half percent, against a seventy-percent reference ceiling. Accuracy does not
+move consistently with dormancy in these results.
 
-So the headline is this. **Dormancy buys up to twenty-seven percent of the Pi's energy and costs
-up to ninety-five percent of end-to-end accuracy — because the Pi finishes booting after the thing
-it woke for is gone.** A tiered wake-up system whose slow tier boots slower than its stimulus
-lasts does not have a tradeoff worth making. The fix isn't a better model. It's a tier three that
-resumes in well under twenty seconds, or a tier two that buffers a frame for it to classify on
-waking."
+Pi-rail energy savings still reach twenty-seven percent. The boot takes longer than the historical
+fifteen-second stimulus, which could affect capture, but these results do not isolate that effect.
+Our current twenty-five-second stimulus outlasts the measured boot; we need a new controlled matrix
+to quantify the effect on accuracy and energy."
 
 ---
 
@@ -275,10 +278,10 @@ from twenty-seven percent saved to a projected seventy-three, and that number is
 measurement. And it is one night, one run per cell, forty events — about eight points of binomial
 noise on every detection rate.
 
-What we built is a three-tier wake-up cascade that works end to end. What we *learned* is that
-the tier boundary is in the wrong place, and we can say exactly why: twenty-point-eight seconds of
-boot against fifteen seconds of stimulus. Halving the wake latency matters more than anything we
-could do to the classifier."
+What we built is a three-tier wake-up cascade that works end to end. The corrected stimulus
+lasts twenty-five seconds against a twenty-point-eight-second boot, leaving about four seconds
+for capture. The earlier short-stimulus results show why wake latency matters; a new matrix
+will tell us the tradeoff with the corrected duration."
 
 ---
 
@@ -294,7 +297,7 @@ Do all of this before recording anything.
 - [ ] `vcgencmd get_throttled` → `0x0` on the Pi.
 - [ ] Take the schematic/breadboard photo (still outstanding in `trigger_characterization.md`) —
       it's the one still image segment 4 needs.
-- [ ] Run one `tools/run_experiment.py --mean-interval 20 --dormancy-ms 15000 --n-events 4`
+- [ ] Run one `tools/run_experiment.py --mean-interval 20 --duration-ms 25000 --dormancy-ms 15000 --n-events 4`
       rehearsal to confirm the whole chain works before the camera rolls.
 - [ ] Regenerate figures so what's on screen matches what's in the repo:
       `analysis/plots.py data/ --tag overnight` and the named-cell trace.

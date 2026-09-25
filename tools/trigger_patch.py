@@ -47,6 +47,7 @@ lock the trimmer and write the wiper voltage into docs/trigger_characterization.
 from __future__ import annotations
 
 import argparse
+import os
 import bisect
 import csv
 import itertools
@@ -367,8 +368,8 @@ def main() -> int:
     ap.add_argument("--match", default=r"^EVT,", help="regex: which serial lines are triggers")
     ap.add_argument("--listen-only", action="store_true",
                     help="with --serial, do not answer like a Pi")
-    ap.add_argument("--display", type=int, default=1,
-                    help="monitor index (default: 1, external rig display; 0 = built-in)")
+    ap.add_argument("--display", type=int, default=int(os.environ.get("RIG_DISPLAY", 1)),
+                    help="monitor index (default: $RIG_DISPLAY or 1; 0 = built-in)")
     ap.add_argument("--patch-corner", choices=["tl", "tr", "bl", "br"], default=DEFAULT_PATCH_CORNER)
     ap.add_argument("--patch-frac", type=float, default=DEFAULT_PATCH_FRAC)
     ap.add_argument("--lead-in", type=float, default=3.0)

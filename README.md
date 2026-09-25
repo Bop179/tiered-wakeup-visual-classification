@@ -129,7 +129,7 @@ naive model, which overstates average power by 60% at a 15 s mean interval.
 ## Repository
 
 ```
-docs/     INTERFACE.md (frozen Tier2↔Tier3 contract) · TEAMMATE_BRIEF.md (Tier 1/2 spec)
+docs/     INTERFACE.md (frozen Tier2↔Tier3 contract)
           EXPERIMENTS.md (matrix + run log) · trigger_characterization.md
 firmware/ tier2_firmware/          Arduino Uno — the Tier 2 owner
 pi/       pi_daemon.py · classify.py · models/

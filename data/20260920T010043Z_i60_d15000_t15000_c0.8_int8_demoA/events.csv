@@ -1,2 +1,0 @@
-t_pi,event_idx,arduino_t_ms,peak,evt_duration_ms,state_at_evt,capture_ms,infer_ms,latency_ms,class_id,class_name,confidence,top5,fired
-1789866250.671,0,504400,571,10,booted,1.6,29.9,39.3,918,comic book,0.567,918:0.567;455:0.191;917:0.024;550:0.022;693:0.020,0

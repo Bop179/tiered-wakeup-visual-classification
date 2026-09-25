@@ -444,6 +444,8 @@ def main() -> int:
                    default="exponential")
     g.add_argument("--flicker-rate", type=float, default=0.0)
     g.add_argument("--flicker-contrast", type=float, default=0.15)
+    g.add_argument("--first-dwell", type=float, default=None,
+                   help="seconds before the first event; default is a normal dwell")
     g.add_argument("--trimmer", default="",
                    help="free text: Tier 1 trimmer position, for the ROC sweep")
 
@@ -453,8 +455,8 @@ def main() -> int:
     ap.add_argument("--daemon-mode", choices=["unit", "nohup"], default="unit",
                     help="unit: tier3-daemon.service, which survives halts (default). "
                          "nohup: loses every event after the first halt")
-    ap.add_argument("--display", type=int, default=1,
-                    help="monitor index (default: 1, external rig display; 0 = built-in)")
+    ap.add_argument("--display", type=int, default=int(os.environ.get("RIG_DISPLAY", 1)),
+                    help="monitor index (default: $RIG_DISPLAY or 1; 0 = built-in)")
     ap.add_argument("--images", type=Path, default=REPO / "images")
     ap.add_argument("--target-class", default="banana")
     ap.add_argument("--seed", type=int, default=0)
@@ -476,7 +478,8 @@ def main() -> int:
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = (f"i{args.mean_interval:g}_d{args.duration_ms}_"
-            f"t{args.dormancy_ms}_c{args.contrast:g}_{args.model}")
+            f"t{args.dormancy_ms}_c{args.contrast:g}_{args.model}"
+            + ("_manual" if args.n_events == 0 else ""))   # live_dashboard.py keys on it
     run_id = f"{stamp}_{slug}" + (f"_{args.tag}" if args.tag else "")
     run_dir = args.data_dir / run_id
     pi = RemotePi(args.host, args.pi_repo)
@@ -486,7 +489,7 @@ def main() -> int:
     if use_pi:
         if not pi.reachable():
             print(f"cannot reach {args.host} over ssh. If the last cell left the Pi halted, "
-                  f"wake it with\n  tools/trigger_patch.py flash --count 1 --contrast 1\n"
+                  f"wake it with\n  tools/trigger_patch.py flash --count 1 --contrast 1 --display {args.display}\n"
                   f"and run this again once `ssh {args.host} true` works.", file=sys.stderr)
             return 1
         if (args.daemon_mode == "unit" and "installed" not in
@@ -512,7 +515,8 @@ def main() -> int:
         "params": {k: getattr(args, k) for k in
                    ("mean_interval", "duration_ms", "contrast", "dormancy_ms",
                     "n_events", "model", "dwell_dist", "flicker_rate",
-                    "flicker_contrast", "trimmer", "seed", "target_class")},
+                    "flicker_contrast", "first_dwell", "trimmer", "seed",
+                    "target_class")},
         "host": args.host,
         "daemon_mode": args.daemon_mode,
         "note": args.note,
@@ -546,7 +550,8 @@ def main() -> int:
             if args.daemon_mode == "unit":
                 pointer = "".join(f"{k}={shlex.quote(str(v))}\n" for k, v in (
                     ("RUN_ID", run_id), ("MODEL", args.model),
-                    ("TARGET_CLASS", args.target_class), ("DORMANCY_MS", args.dormancy_ms)))
+                    ("TARGET_CLASS", args.target_class), ("DORMANCY_MS", args.dormancy_ms),
+                    ("RELEASE_AFTER", args.n_events or "")))   # manual: never mid-run
                 # Stop any daemon a previous run left behind before re-pointing the unit.
                 pi.run(f"sudo systemctl stop {UNIT}; mkdir -p {remote_dir} && "
                        f"cat > {args.pi_repo}/data/current_run.env", input=pointer, timeout=40)
@@ -582,10 +587,15 @@ def main() -> int:
                "--display", str(args.display),
                "--seed", str(args.seed),
                "-o", str(run_dir / "gen.csv")]
+        if args.first_dwell is not None:
+            cmd += ["--first-dwell", str(args.first_dwell)]
+        if args.n_events == 0:
+            cmd += ["--lead-in", "1e9"]   # manual: black until Esc / q in the window
         if args.dry_run:
             cmd.append("--dry-run")
         print(f"  stimulus: {' '.join(cmd)}\n")
         rc = subprocess.call(cmd, cwd=REPO)
+        manifest["stimulus_rc"] = rc
         if rc != 0:
             print(f"  stimulus exited {rc}", file=sys.stderr)
 
@@ -676,7 +686,8 @@ def main() -> int:
     print(f"  files: {', '.join(manifest['files'])}")
 
     log = REPO / "docs" / "EXPERIMENTS.md"
-    if log.exists():
+    failed = bool(manifest.get("stimulus_rc"))   # no stimulus, no measurement
+    if log.exists() and args.n_events and not failed:  # nor is a manual demo
         row = (f"| `{run_id}` | {stamp[:8]} | | {args.dormancy_ms} | "
                f"{args.mean_interval:g} s | {args.duration_ms} | {args.contrast:g} | "
                f"{args.model} | {args.n_events} | | | {args.note} |")
@@ -688,7 +699,10 @@ def main() -> int:
 
     print(f"\nnext:  analysis/energy_analysis.py {run_dir}"
           f"\n       analysis/accuracy.py {run_dir}")
-    return 0
+    if failed:
+        print(f"\nFAILED: stimulus exited {manifest['stimulus_rc']}; this cell has no data",
+              file=sys.stderr)
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

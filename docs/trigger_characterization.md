@@ -36,8 +36,8 @@ hysteresis resistor off the board, and meter the threshold wiper to the millivol
 
 ## 2. Sensor sees the monitor
 
-The PT204-6B was **not used**. It was replaced by an LDR in the divider the brief gives as the
-fallback (§0.2 of `TEAMMATE_BRIEF.md`): 5 V → LDR → node → load → GND. More light ⇒ higher node
+The PT204-6B was **not used**. It was replaced by an LDR in the divider the original Tier 1 spec gave as the
+fallback (its §0.2): 5 V → LDR → node → load → GND. More light ⇒ higher node
 voltage, the same polarity as the phototransistor, so nothing downstream changed.
 
 - **Sensor used:** LDR (CdS photoresistor)

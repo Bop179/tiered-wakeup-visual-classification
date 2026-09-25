@@ -174,6 +174,15 @@ def fig_trace(run_dir: Path, C, args, plt):
     summary_path = run_dir / "summary.json"
     summary = json.loads(summary_path.read_text()) if summary_path.exists() else {}
     t0 = t[0]
+    if args.window:
+        # Crop the samples, not just the view: a whole overnight run is a solid
+        # blob at slide size, and set_xlim alone would keep the full run's
+        # y-range so the interesting band stays squashed.
+        a, b = args.window
+        pts = [(x, y) for x, y in zip(t, w) if a <= x - t0 <= b]
+        if not pts:
+            return None
+        t, w = map(list, zip(*pts))
     rel = [x - t0 for x in t]
 
     fig, ax = plt.subplots(figsize=(10.0, 3.8))
@@ -219,6 +228,8 @@ def fig_trace(run_dir: Path, C, args, plt):
                  + (f"   ({len(boots)} boots, {eb:.0f} J each)" if eb else "")
                  + "\nvertical rules are stimulus events; shading is a boot")
     ax.set_ylim(min(w) - 0.15, max(w) + 0.35)
+    if args.window:
+        ax.set_xlim(*args.window)
     if boots:
         ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=1)
     fig.tight_layout()
@@ -360,6 +371,8 @@ def main() -> int:
                     default=REPO / "data" / "tier1_roc.csv")
     ap.add_argument("--tag", help="keep only runs whose run_id ends in this "
                                   "--tag, e.g. overnight")
+    ap.add_argument("--window", nargs=2, type=float, metavar=("T0", "T1"),
+                    help="trace only: crop to these seconds into the run")
     ap.add_argument("--min-boot-s", type=float, default=8.0)
     ap.add_argument("--min-dwell-s", type=float, default=1.0)
     ap.add_argument("--format", default="png", choices=["png", "pdf", "svg"])

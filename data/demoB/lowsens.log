@@ -1,6 +1,0 @@
-INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
-# sync offset -1827683.3 ms
-# param DORMANCY=-1
-# param PERSIST=10
-# clapperboard 1789869639.382 2s
-# ready 1789869641.386 uptime=1979.9 model=int8

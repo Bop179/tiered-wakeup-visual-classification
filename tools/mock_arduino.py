@@ -286,6 +286,7 @@ def self_test(args) -> int:
         clapperboard, sync_n, max_runtime = 0.0, 1, 30.0
         dormancy_ms = args.dormancy_ms if args.dormancy_ms is not None else 30000
         persist_ms = refractory_ms = None
+        release_after = None
         no_camera = fake_infer = no_halt = True
         fake_frame, swap_rgb = False, True
         fake_latency = 5.0
@@ -338,6 +339,21 @@ def self_test(args) -> int:
               f"{'ok' if got == want_dorm else 'FAIL'}")
         if got != want_dorm:
             failures.append(f"daemon failed to SET DORMANCY: {got} != {want_dorm}")
+
+    # --release-after: the event that completes the run's stimuli stops the halting.
+    daemon.args.release_after = daemon.event_idx + 1
+    r = mock.one_event(1000)
+    t_end = time.time() + 2.0               # the SET follows the RES; answer it
+    while mock.params["DORMANCY"] != -1 and time.time() < t_end:
+        line = mock_link.readline()
+        if line is None:
+            time.sleep(0.005)
+        else:
+            mock.handle_config(line.strip())
+    got = mock.params["DORMANCY"]
+    print(f"  release-after -> DORMANCY {got} {'ok' if r['ok'] and got == -1 else 'FAIL'}")
+    if not (r["ok"] and got == -1):
+        failures.append(f"release-after did not SET DORMANCY -1: {got}")
 
     # Clamping is a unit test of Tier 2's side, on its own queues so the replies
     # do not land in the daemon's inbox. This is the behaviour the Tier 2 owner's firmware

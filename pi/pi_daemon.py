@@ -359,6 +359,19 @@ class Daemon:
         print(f"# evt {self.event_idx} {state} {latency_ms:.0f}ms -> "
               f"{cid} {name} {conf:.3f}{' FIRED' if fired else ''}", flush=True)
         self.event_idx += 1
+        self.maybe_release(link)
+
+    def maybe_release(self, link: Link) -> None:
+        """After the run's last stimulus, stop Tier 2 halting the Pi. Without this a
+        short dormancy halts a woken Pi before it rejoins WiFi (~20 s after ready),
+        so the Mac can never reach it to release it over ssh."""
+        n = self.args.release_after
+        if self.released or n is None or self.event_idx < n:
+            return
+        self.released = True
+        got = set_param(link, "DORMANCY", -1)
+        print(f"# release-after {n} events: DORMANCY={got}" if got is not None
+              else "# WARN release-after not acknowledged", flush=True)
 
     def handle_halt(self, link: Link) -> bool:
         self.halting = True          # --exit-dormancy must never undo a HALT
@@ -392,7 +405,12 @@ class Daemon:
 
         # Swept parameters, set and verified before the clapperboard so the run
         # record carries what the firmware actually has, not what we asked for.
-        for key, want in (("DORMANCY", self.args.dormancy_ms),
+        # A restart after the run's last stimulus (a post-run wake) must not put the
+        # run's short dormancy back.
+        self.released = False
+        if self.args.release_after is not None and self.event_idx >= self.args.release_after:
+            self.maybe_release(link)
+        for key, want in (("DORMANCY", None if self.released else self.args.dormancy_ms),
                           ("PERSIST", self.args.persist_ms),
                           ("REFRACTORY", self.args.refractory_ms)):
             if want is None:
@@ -495,6 +513,9 @@ def main() -> int:
                     help="on SIGTERM/SIGINT, SET DORMANCY to this before exiting -- "
                          "never after a HALT. pi/run_current.sh passes -1 so the Pi "
                          "stays up between runs")
+    ap.add_argument("--release-after", type=int,
+                    help="once events.csv holds this many events (the run's stimuli), "
+                         "SET DORMANCY -1 so the Pi stays up after the run")
     ap.add_argument("--no-camera", action="store_true",
                     help="no picamera2 -- for running against a mock Arduino")
     ap.add_argument("--fake-infer", action="store_true",

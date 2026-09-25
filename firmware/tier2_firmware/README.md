@@ -9,8 +9,6 @@ that is already frozen.
 1. **[`docs/INTERFACE.md`](../../docs/INTERFACE.md)** — the frozen contract. Section 1 is the
    serial link, section 3 wake and halt, section 6 the firmware constants you own.
    **Section 2 is "the two ways to destroy a Pi". Read it before wiring anything.**
-2. **[`docs/TEAMMATE_BRIEF.md`](../../docs/TEAMMATE_BRIEF.md)** — the Tier 1 analog chain and the
-   Tier 2 spec in full.
 
 ## The job in one paragraph
 
